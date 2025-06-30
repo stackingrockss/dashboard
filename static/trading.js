@@ -1,0 +1,1 @@
+// trading.js deprecated: trading tab UI removed

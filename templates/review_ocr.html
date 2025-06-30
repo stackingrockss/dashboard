@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review OCR Results</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .review-container {
+            display: flex;
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .image-section {
+            flex: 1;
+            max-width: 500px;
+        }
+        
+        .form-section {
+            flex: 1;
+        }
+        
+        .scan-image {
+            width: 100%;
+            max-width: 500px;
+            height: auto;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            cursor: crosshair;
+        }
+        
+        .image-container {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .magnifier {
+            position: absolute;
+            width: 250px;
+            height: 250px;
+            border: 3px solid #007bff;
+            border-radius: 50%;
+            background-repeat: no-repeat;
+            background-size: 1500px 1500px;
+            pointer-events: none;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            background-color: white;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+        }
+        
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: 1.5rem 0 1rem 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #007bff;
+            color: #007bff;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        
+        .ocr-info {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .ocr-info h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        
+        .ocr-info p {
+            margin-bottom: 0.5rem;
+            color: #6c757d;
+        }
+        
+        .field-highlight {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .zoom-instructions {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: #666;
+            font-style: italic;
+        }
+        
+        @media (max-width: 768px) {
+            .review-container {
+                flex-direction: column;
+                padding: 1rem;
+            }
+            
+            .image-section {
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Review OCR Results</h1>
+            <p>Please review and edit the extracted values from your body scan image</p>
+        </header>
+
+        <div class="review-container">
+            <div class="image-section">
+                <h2>Body Scan Image</h2>
+                <div class="image-container">
+                    <img id="scan-image" class="scan-image" src="" alt="Body Scan">
+                    <div class="magnifier"></div>
+                </div>
+                
+                <div class="zoom-instructions">
+                    Hover over the image to see a powerful 6x magnifier. Click to toggle on/off.
+                </div>
+                
+                <div class="ocr-info">
+                    <h3>OCR Information</h3>
+                    <p><strong>Image:</strong> <span id="image-name"></span></p>
+                    <p><strong>Extracted Metrics:</strong> <span id="metrics-count">0</span></p>
+                    <p><strong>Date:</strong> <span id="scan-date"></span></p>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <form id="review-form">
+                    <input type="hidden" id="temp-filename" name="temp_filename">
+                    
+                    <div class="section-title">Basic Measurements</div>
+                    
+                    <div class="form-group">
+                        <label for="weight">Weight (lbs):</label>
+                        <input type="number" id="weight" name="weight" step="0.01">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="body_fat_percentage">Body Fat (%):</label>
+                        <input type="number" id="body_fat_percentage" name="body_fat_percentage" step="0.01">
+                    </div>
+                    
+                    <div class="section-title">InBody Metrics</div>
+                    
+                    <div class="form-group">
+                        <label for="smm">Skeletal Muscle Mass (lbs):</label>
+                        <input type="number" id="smm" name="smm" step="0.01">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="body_fat_mass">Body Fat Mass (lbs):</label>
+                        <input type="number" id="body_fat_mass" name="body_fat_mass" step="0.01">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="lean_body_mass">Lean Body Mass (lbs):</label>
+                        <input type="number" id="lean_body_mass" name="lean_body_mass" step="0.01">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="bmr">Basal Metabolic Rate (BMR):</label>
+                        <input type="number" id="bmr" name="bmr" step="0.01">
+                    </div>
+                    
+                    <div class="section-title">Segmental Lean Analysis (lbs)</div>
+                    
+                    <div class="form-group">
+                        <label for="left_arm_lean_mass">Left Arm:</label>
+                        <input type="number" id="left_arm_lean_mass" name="left_arm_lean_mass" step="0.01">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="right_arm_lean_mass">Right Arm:</label>
+                        <input type="number" id="right_arm_lean_mass" name="right_arm_lean_mass" step="0.01">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="left_leg_lean_mass">Left Leg:</label>
+                        <input type="number" id="left_leg_lean_mass" name="left_leg_lean_mass" step="0.01">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="right_leg_lean_mass">Right Leg:</label>
+                        <input type="number" id="right_leg_lean_mass" name="right_leg_lean_mass" step="0.01">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="trunk_lean_mass">Trunk:</label>
+                        <input type="number" id="trunk_lean_mass" name="trunk_lean_mass" step="0.01">
+                    </div>
+                    
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-primary">Save Stat</button>
+                        <a href="/" class="btn btn-secondary">Cancel</a>
+                        <button type="button" class="btn btn-danger" onclick="clearForm()">Clear All</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const imagePath = urlParams.get('image_path');
+        const tempFilename = urlParams.get('temp_filename');
+        const metrics = JSON.parse(urlParams.get('metrics') || '{}');
+        
+        // Set up the page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set image
+            if (imagePath) {
+                document.getElementById('scan-image').src = '/' + imagePath;
+                document.getElementById('image-name').textContent = imagePath.split('/').pop();
+            }
+            
+            // Set temp filename
+            if (tempFilename) {
+                document.getElementById('temp-filename').value = tempFilename;
+            }
+            
+            // Set metrics count
+            document.getElementById('metrics-count').textContent = Object.keys(metrics).length;
+            
+            // Set current date
+            document.getElementById('scan-date').textContent = new Date().toLocaleDateString();
+            
+            // Fill form with OCR data
+            fillFormWithOCRData(metrics);
+            
+            // Initialize zoom functionality
+            initZoom();
+        });
+        
+        function fillFormWithOCRData(metrics) {
+            const fieldMappings = {
+                'weight': 'weight',
+                'body_fat_percentage': 'body_fat_percentage',
+                'smm': 'smm',
+                'body_fat_mass': 'body_fat_mass',
+                'lean_body_mass': 'lean_body_mass',
+                'bmr': 'bmr',
+                'left_arm_lean_mass': 'left_arm_lean_mass',
+                'right_arm_lean_mass': 'right_arm_lean_mass',
+                'left_leg_lean_mass': 'left_leg_lean_mass',
+                'right_leg_lean_mass': 'right_leg_lean_mass',
+                'trunk_lean_mass': 'trunk_lean_mass'
+            };
+
+            let filledCount = 0;
+            for (const [metricKey, fieldId] of Object.entries(fieldMappings)) {
+                if (metrics[metricKey] !== undefined) {
+                    const field = document.getElementById(fieldId);
+                    if (field) {
+                        field.value = metrics[metricKey];
+                        field.classList.add('field-highlight');
+                        filledCount++;
+                    }
+                }
+            }
+
+            console.log(`Auto-filled ${filledCount} fields with OCR data`);
+        }
+        
+        function clearForm() {
+            const form = document.getElementById('review-form');
+            form.reset();
+            
+            // Remove highlights
+            const inputs = form.querySelectorAll('input');
+            inputs.forEach(input => {
+                input.classList.remove('field-highlight');
+            });
+        }
+        
+        // Form submission
+        document.getElementById('review-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            try {
+                const response = await fetch('/fitness/save_reviewed_stat', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    window.location.href = '/'; // Redirect to dashboard without alert
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error saving stat:', error);
+                alert('Error saving stat: ' + error.message);
+            }
+        });
+        
+        // Zoom functionality
+        let magnifierActive = false;
+        
+        function initZoom() {
+            const scanImage = document.getElementById('scan-image');
+            const magnifier = document.querySelector('.magnifier');
+            const container = document.querySelector('.image-container');
+            
+            if (!scanImage || !magnifier || !container) return;
+            
+            // Wait for image to load
+            scanImage.onload = function() {
+                // Click to toggle magnifier on/off
+                container.addEventListener('click', function(e) {
+                    if (e.target === scanImage) {
+                        magnifierActive = !magnifierActive;
+                        if (!magnifierActive) {
+                            magnifier.style.display = 'none';
+                        }
+                    }
+                });
+                
+                // Mouse move - update magnifier position and zoom
+                container.addEventListener('mousemove', function(e) {
+                    if (!magnifierActive) return;
+                    
+                    const rect = container.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    // Calculate magnifier position (center it on cursor)
+                    const magX = x - magnifier.offsetWidth / 2;
+                    const magY = y - magnifier.offsetHeight / 2;
+                    
+                    // Position the magnifier
+                    magnifier.style.left = magX + 'px';
+                    magnifier.style.top = magY + 'px';
+                    
+                    // Calculate zoom position (6x zoom)
+                    const zoomX = (x / scanImage.offsetWidth) * 100;
+                    const zoomY = (y / scanImage.offsetHeight) * 100;
+                    
+                    // Apply zoom effect
+                    magnifier.style.backgroundImage = `url(${scanImage.src})`;
+                    magnifier.style.backgroundPosition = `${zoomX}% ${zoomY}%`;
+                    magnifier.style.display = 'block';
+                });
+                
+                // Mouse leave - hide magnifier
+                container.addEventListener('mouseleave', function() {
+                    magnifier.style.display = 'none';
+                });
+            };
+        }
+    </script>
+</body>
+</html> 

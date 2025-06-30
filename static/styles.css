@@ -1,0 +1,1203 @@
+/* Reset default styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    color: #333;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    width: 100vw;
+}
+
+.container {
+    width: 100vw;
+    min-height: 100vh;
+    padding: 20px;
+    box-sizing: border-box;
+    margin: 0;
+    max-width: none;
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    border-bottom: 2px solid #ddd;
+    margin-bottom: 20px;
+}
+
+.tab-button {
+    padding: 10px 20px;
+    background: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.3s;
+}
+
+.tab-button:hover {
+    background: #e0e0e0;
+}
+
+.tab-button.active {
+    background: #007bff;
+    color: #fff;
+    font-weight: bold;
+}
+
+.tab-content {
+    display: none; /* Hide all tab contents by default */
+    background: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.tab-content.active {
+    display: block; /* Show only the active tab content */
+}
+
+/* Sub-tabs */
+.sub-tabs {
+    display: flex;
+    margin-bottom: 15px;
+}
+
+.sub-tab-button {
+    padding: 8px 15px;
+    background: #f9f9f9;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    margin-right: 5px;
+}
+
+.sub-tab-button:hover {
+    background: #e0e0e0;
+}
+
+.sub-tab-button.active {
+    background: #007bff;
+    color: #fff;
+}
+
+.sub-tab-content {
+    display: none; /* Hide all sub-tab contents by default */
+}
+
+.sub-tab-content.active {
+    display: block; /* Show only the active sub-tab content */
+}
+
+/* Forms */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+button {
+    padding: 10px 20px;
+    background: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+button:hover {
+    background: #0056b3;
+}
+
+/* Reset button styles */
+button {
+    border: none;
+    background: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+}
+
+.favorite-btn {
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.favorite-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.1);
+}
+
+.favorite-btn:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(255, 68, 68, 0.2);
+}
+
+.favorite-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.favorite-btn:disabled:hover {
+    transform: none;
+    background: transparent;
+}
+
+.favorite-animate {
+    animation: favoritePulse 0.3s ease-in-out;
+}
+
+@keyframes favoritePulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Tables */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th, td {
+    padding: 10px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+th {
+    background: #f4f4f4;
+    font-weight: bold;
+}
+
+tr:nth-child(even) {
+    background: #f9f9f9;
+}
+
+/* Search Results */
+.search-results {
+    position: absolute;
+    background: #fff;
+    border: 1px solid #ddd;
+    width: 100%;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.search-results div {
+    padding: 10px;
+    cursor: pointer;
+}
+
+.search-results div:hover {
+    background: #f0f0f0;
+}
+
+/* Modals */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    max-width: 500px;
+    width: 90%;
+    position: relative;
+}
+
+.modal-content .close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.modal-content h2 {
+    margin-bottom: 20px;
+}
+
+.modal-content form {
+    display: flex;
+    flex-direction: column;
+}
+
+/* In styles.css, replace .modal-content button */
+.modal-button {
+    margin-top: 10px;
+    padding: 10px 20px;
+    background: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+.modal-button:hover {
+    background: #0056b3;
+}
+
+/* Actions */
+.actions button {
+    margin-right: 5px;
+    padding: 5px 10px;
+    font-size: 12px;
+}
+
+/* Snackbars */
+#snackbar {
+    visibility: hidden;
+    min-width: 250px;
+    margin-left: -125px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 2px;
+    padding: 16px;
+    position: fixed;
+    z-index: 1;
+    left: 50%;
+    bottom: 30px;
+    font-size: 17px;
+}
+
+#snackbar.show {
+    visibility: visible;
+    -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
+    animation: fadein 0.5s, fadeout 0.5s 2.5s;
+}
+
+#snackbar.error {
+    background-color: #d32f2f;
+}
+
+@-webkit-keyframes fadein {
+    from {bottom: 0; opacity: 0;}
+    to {bottom: 30px; opacity: 1;}
+}
+
+@keyframes fadein {
+    from {bottom: 0; opacity: 0;}
+    to {bottom: 30px; opacity: 1;}
+}
+
+@-webkit-keyframes fadeout {
+    from {bottom: 30px; opacity: 1;}
+    to {bottom: 0; opacity: 0;}
+}
+
+@keyframes fadeout {
+    from {bottom: 30px; opacity: 1;}
+    to {bottom: 0; opacity: 0;}
+}
+details.measurements {
+    margin: 15px 0;
+    padding: 10px;
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+details.measurements summary {
+    font-weight: bold;
+    font-size: 16px;
+    padding: 10px;
+    cursor: pointer;
+    background: #007bff;
+    color: #fff;
+    border-radius: 4px;
+    transition: background 0.3s;
+}
+
+details.measurements summary:hover {
+    background: #0056b3;
+}
+
+details.measurements[open] summary {
+    background: #0056b3;
+}
+
+details.measurements .form-group {
+    margin-top: 10px;
+}
+.delete-btn {
+    background-color: #ff4d4d;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 3px;
+    margin-left: 5px;
+}
+.delete-btn:hover {
+    background-color: #cc0000;
+}
+.snackbar {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 20px;
+    border-radius: 5px;
+    color: white;
+    z-index: 1000;
+}
+.snackbar.success {
+    background-color: #4caf50;
+}
+.snackbar.error {
+    background-color: #f44336;
+}
+.edit-btn {
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 3px;
+    margin-right: 5px;
+}
+.edit-btn:hover {
+    background-color: #388e3c;
+}
+.delete-btn {
+    background-color: #ff4d4d;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 3px;
+}
+.delete-btn:hover {
+    background-color: #cc0000;
+}
+.snackbar {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 20px;
+    border-radius: 5px;
+    color: white;
+    z-index: 1000;
+}
+.snackbar.success {
+    background-color: #4caf50;
+}
+.snackbar.error {
+    background-color: #f44336;
+}
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    justify-content: center;
+    align-items: center;
+}
+.modal-content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 5px;
+    width: 80%;
+    max-width: 500px;
+}
+.close {
+    float: right;
+    font-size: 20px;
+    cursor: pointer;
+}
+.modal-button {
+    margin-top: 10px;
+    padding: 10px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+.modal-button[type="submit"] {
+    background-color: #4caf50;
+    color: white;
+}
+.modal-button[type="button"] {
+    background-color: #ff4d4d;
+    color: white;
+}
+#total-calories-burned {
+    margin: 10px 0;
+    font-weight: bold;
+    color: #007bff;
+}
+
+#tdee-chart {
+    max-height: 400px;
+    margin: 20px 0;
+}
+
+canvas {
+    width: 100% !important;
+    height: auto !important;
+}
+
+/* Nutrition Summary Styles */
+.nutrition-summary {
+    margin: 20px 0;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.nutrition-summary-card {
+    padding: 15px;
+    border-radius: 6px;
+    border-left: 4px solid #007bff;
+}
+
+.nutrition-summary-card.logged-food {
+    border-left-color: #28a745;
+    background: #d4edda;
+}
+
+.nutrition-summary-card.manual-input {
+    border-left-color: #ffc107;
+    background: #fff3cd;
+}
+
+.nutrition-summary-card.no-data {
+    border-left-color: #6c757d;
+    background: #f8f9fa;
+}
+
+.source-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.logged-food .source-badge {
+    background: #28a745;
+    color: white;
+}
+
+.manual-input .source-badge {
+    background: #ffc107;
+    color: #212529;
+}
+
+.no-data .source-badge {
+    background: #6c757d;
+    color: white;
+}
+
+.nutrition-totals {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
+    margin: 15px 0;
+}
+
+.nutrition-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.nutrition-item .label {
+    font-size: 12px;
+    color: #6c757d;
+    margin-bottom: 5px;
+}
+
+.nutrition-item .value {
+    font-size: 18px;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.nutrition-entries {
+    margin-top: 15px;
+}
+
+.nutrition-entries summary {
+    cursor: pointer;
+    padding: 10px;
+    background: #e9ecef;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.nutrition-entries summary:hover {
+    background: #dee2e6;
+}
+
+.entries-list {
+    margin-top: 10px;
+}
+
+.entry-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    margin: 5px 0;
+    background: white;
+    border-radius: 4px;
+    border-left: 3px solid #007bff;
+}
+
+.entry-item.manual-entry {
+    border-left-color: #ffc107;
+    background: #fff3cd;
+}
+
+.entry-item.logged-entry {
+    border-left-color: #28a745;
+    background: #d4edda;
+}
+
+.entry-type {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: #6c757d;
+    color: white;
+    text-transform: uppercase;
+}
+
+.manual-entry .entry-type {
+    background: #ffc107;
+    color: #212529;
+}
+
+.logged-entry .entry-type {
+    background: #28a745;
+    color: white;
+}
+
+/* Manual Calories Section */
+.manual-calories-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+}
+
+.manual-calories-section h3 {
+    color: #856404;
+    margin-bottom: 15px;
+}
+
+.food-logging-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    border-radius: 8px;
+}
+
+.food-logging-section h3 {
+    color: #155724;
+    margin-bottom: 15px;
+}
+
+.food-entries-section {
+    margin-top: 30px;
+}
+
+.food-entries-section h3 {
+    margin-bottom: 15px;
+    color: #495057;
+}
+
+/* Error styling */
+.error {
+    color: #dc3545;
+    background: #f8d7da;
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid #f5c6cb;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.modal-button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+.modal-button[type="submit"] {
+    background: #007bff;
+    color: white;
+}
+
+.modal-button[type="submit"]:hover {
+    background: #0056b3;
+}
+
+.modal-button.cancel {
+    background: #6c757d;
+    color: white;
+}
+
+.modal-button.cancel:hover {
+    background: #545b62;
+}
+
+/* TDEE Summary Styles */
+.tdee-summary-card {
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+    background: #f8f9fa;
+    margin: 15px 0;
+}
+
+.tdee-summary-card.logged-food {
+    border-left-color: #28a745;
+    background: #d4edda;
+}
+
+.tdee-summary-card.manual-input {
+    border-left-color: #ffc107;
+    background: #fff3cd;
+}
+
+.tdee-summary-card.no-data {
+    border-left-color: #6c757d;
+    background: #f8f9fa;
+}
+
+.tdee-summary-card h4 {
+    margin-bottom: 15px;
+    color: #495057;
+}
+
+.tdee-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.metric-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    margin-bottom: 8px;
+}
+
+.metric-item .label {
+    font-size: 14px;
+    color: #495057;
+    font-weight: 500;
+}
+
+.metric-item .value {
+    font-size: 18px;
+    font-weight: bold;
+    color: #007bff;
+    white-space: nowrap;
+}
+
+.metric-item .status {
+    margin-left: 10px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.metric-item .status:empty::before {
+    content: "No data";
+    color: #6c757d;
+    background: #f8f9fa;
+}
+
+.calorie-source-info {
+    padding: 15px;
+    background: white;
+    border-radius: 6px;
+    border-top: 2px solid #e9ecef;
+}
+
+.calorie-source-info p {
+    margin: 5px 0;
+}
+
+.source-detail {
+    font-size: 14px;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Stats Form Styles */
+#stats-form {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    margin-bottom: 20px;
+}
+
+#stats-form .form-group {
+    margin-bottom: 15px;
+}
+
+#stats-form .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #495057;
+}
+
+#stats-form .form-group input,
+#stats-form .form-group select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+#stats-form .form-group input:focus,
+#stats-form .form-group select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+#stats-form button[type="submit"] {
+    background: #28a745;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    transition: background-color 0.3s;
+}
+
+#stats-form button[type="submit"]:hover {
+    background: #218838;
+}
+
+header {
+    background: #007bff;
+    color: white;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-actions {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.profile-link {
+    color: white;
+    text-decoration: none;
+    padding: 8px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.profile-link:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.action-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 3px;
+    margin: 0 2px;
+    font-size: 16px;
+    transition: background-color 0.2s ease;
+}
+
+.edit-icon {
+    color: #4caf50;
+}
+
+.edit-icon:hover {
+    background-color: rgba(76, 175, 80, 0.1);
+}
+
+.delete-icon {
+    color: #ff4d4d;
+}
+
+.delete-icon:hover {
+    background-color: rgba(255, 77, 77, 0.1);
+}
+
+/* Expandable table rows */
+.expandable-row {
+    cursor: pointer;
+}
+
+.expandable-row:hover {
+    background-color: #f0f8ff !important;
+}
+
+.expand-icon {
+    color: #007bff;
+    margin-right: 5px;
+    transition: transform 0.2s ease;
+}
+
+.expand-icon.expanded {
+    transform: rotate(90deg);
+}
+
+.details-row {
+    display: none;
+    background-color: #f8f9fa;
+}
+
+.details-row.show {
+    display: table-row;
+}
+
+.details-content {
+    padding: 15px;
+    border-left: 3px solid #007bff;
+    margin: 10px 0;
+}
+
+.details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.detail-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: white;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
+}
+
+.detail-label {
+    font-weight: bold;
+    color: #495057;
+}
+
+.detail-value {
+    color: #007bff;
+    font-weight: 500;
+}
+
+.favorite-star {
+    cursor: pointer;
+    margin-right: 8px;
+    font-size: 1.2em;
+}
+
+.favorite-star:hover {
+    transform: scale(1.2);
+}
+
+/* Kanban Board Styles */
+.kanban-board {
+    display: flex;
+    gap: 30px;
+    margin-top: 20px;
+    padding-bottom: 20px;
+    align-items: flex-start;
+}
+
+.kanban-column {
+    flex: 1;
+    min-width: 280px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    border: 2px solid #e9ecef;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.kanban-column h4 {
+    margin: 0 0 15px 0;
+    padding: 10px;
+    background: #007bff;
+    color: white;
+    border-radius: 5px;
+    text-align: center;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.kanban-column h4:hover {
+    background: #0056b3;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.kanban-column h4:focus {
+    outline: none;
+    background: #0056b3;
+    box-shadow: 0 0 0 3px rgba(0,123,255,0.3);
+}
+
+.kanban-column h4[contenteditable="true"]:empty::before {
+    content: "Click to edit...";
+    color: rgba(255,255,255,0.7);
+    font-style: italic;
+}
+
+.kanban-column h4.saving {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.kanban-column h4.saving::after {
+    content: "Saving...";
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    color: rgba(255,255,255,0.8);
+    font-style: italic;
+}
+
+.kanban-cards {
+    min-height: 200px;
+    padding: 15px;
+    background: #fff;
+    border-radius: 5px;
+    border: 1px dashed #ccc;
+    margin-top: 15px;
+}
+
+.kanban-card {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    cursor: grab;
+    transition: all 0.3s ease;
+}
+
+.kanban-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+    border-color: #007bff;
+}
+
+.kanban-card.dragging {
+    opacity: 0.6;
+    transform: rotate(3deg);
+    cursor: grabbing;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.card-header strong {
+    font-size: 1.25rem;
+    font-weight: 700;
+    background: #f5f7fa;
+    padding: 6px 12px;
+    border-radius: 6px;
+    color: #222;
+    margin-bottom: 4px;
+    display: inline-block;
+    letter-spacing: 0.5px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+
+.card-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.card-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    font-size: 14px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.card-actions .edit-btn:hover {
+    background: #e3f2fd;
+}
+
+.card-actions .delete-btn:hover {
+    background: #ffebee;
+}
+
+.card-content {
+    font-size: 13px;
+    color: #666;
+    line-height: 1.4;
+}
+
+.card-content > div {
+    margin-bottom: 10px;
+}
+
+.card-content strong {
+    color: #333;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.next-steps-text,
+.action-items-text {
+    margin-top: 6px;
+    line-height: 1.5;
+    word-wrap: break-word;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border-left: 3px solid #007bff;
+}
+
+/* Drag and drop visual feedback */
+.kanban-cards.drag-over {
+    background: #e3f2fd;
+    border-color: #2196f3;
+}
+
+/* Responsive design for Kanban */
+@media (max-width: 768px) {
+    .kanban-board {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .kanban-column {
+        min-width: auto;
+    }
+    
+    .kanban-cards {
+        min-height: 150px;
+    }
+}
+
+.page-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+
+.header-center {
+    flex: 1;
+    text-align: center;
+    padding: 20px 0;
+}

@@ -1,0 +1,1495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Food Database Search</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
+    <style>
+        .food-search-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .search-section {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .search-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+        
+        .search-tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .search-tab.active {
+            color: #007bff;
+            border-bottom-color: #007bff;
+        }
+        
+        .search-tab:hover {
+            color: #007bff;
+        }
+        
+        .search-content {
+            display: none;
+        }
+        
+        .search-content.active {
+            display: block;
+        }
+        
+        .search-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .search-input-group input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        
+        .search-input-group input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        
+        .search-input-group button {
+            padding: 12px 24px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .search-input-group button:hover {
+            background: #0056b3;
+        }
+        
+        .barcode-scanner-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .barcode-scanner {
+            width: 100%;
+            max-width: 400px;
+            height: 300px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            margin: 0 auto 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .barcode-scanner video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .scanner-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 100px;
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            pointer-events: none;
+        }
+        
+        .scanner-overlay::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border: 2px solid rgba(0, 123, 255, 0.3);
+            border-radius: 8px;
+            animation: scan 2s linear infinite;
+        }
+        
+        @keyframes scan {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+        
+        .scanner-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .scanner-btn {
+            padding: 10px 20px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .scanner-btn:hover {
+            background: #218838;
+        }
+        
+        .scanner-btn.stop {
+            background: #dc3545;
+        }
+        
+        .scanner-btn.stop:hover {
+            background: #c82333;
+        }
+        
+        .manual-barcode {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .manual-barcode input {
+            width: 200px;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            text-align: center;
+            margin-right: 10px;
+        }
+        
+        .manual-barcode button {
+            padding: 12px 24px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .manual-barcode button:hover {
+            background: #0056b3;
+        }
+        
+        .food-results {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .food-product {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .food-product:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+        
+        .food-product img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+        
+        .food-product h3 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 18px;
+        }
+        
+        .food-product .brand {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .food-product .barcode {
+            color: #999;
+            font-size: 12px;
+            margin-bottom: 10px;
+            font-family: monospace;
+        }
+        
+        .nutrition-info {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        
+        .nutrition-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .nutrition-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .nutrition-label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .nutrition-value {
+            color: #333;
+        }
+        
+        .log-food-btn {
+            width: 100%;
+            padding: 10px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .log-food-btn:hover {
+            background: #218838;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 18px;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .quantity-input {
+            width: 80px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        
+        .quantity-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .barcode-result {
+            background: #e8f5e8;
+            border: 1px solid #28a745;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .barcode-error {
+            background: #f8d7da;
+            border: 1px solid #dc3545;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #721c24;
+        }
+        
+        /* Manual Input Form Styles */
+        .manual-input-form {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .manual-input-form h3 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .manual-input-form p {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .manual-submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 20px;
+            transition: background-color 0.3s ease;
+        }
+        
+        .manual-submit-btn:hover {
+            background: #218838;
+        }
+        
+        .manual-submit-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .form-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #155724;
+        }
+        
+        .form-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #721c24;
+        }
+        
+        /* Fasting Styles */
+        .fasting-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .fasting-status {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+            border: 2px solid #e9ecef;
+        }
+        
+        .fasting-timer {
+            margin-bottom: 20px;
+        }
+        
+        .fasting-timer h4 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+        
+        .timer-display {
+            font-size: 48px;
+            font-weight: bold;
+            color: #007bff;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 10px;
+        }
+        
+        .duration-text {
+            font-size: 16px;
+            color: #666;
+        }
+        
+        .fasting-controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        .fast-btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .fast-btn.start {
+            background: #28a745;
+            color: white;
+        }
+        
+        .fast-btn.start:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+        
+        .fast-btn.end {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .fast-btn.end:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+        
+        .fasting-stats {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .fasting-stats h4 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .stat-label {
+            display: block;
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .stat-value {
+            display: block;
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .fasting-history {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .fasting-history h4 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+        
+        .history-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s ease;
+        }
+        
+        .history-item:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .history-item:last-child {
+            border-bottom: none;
+        }
+        
+        .history-date {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .history-duration {
+            font-size: 16px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .no-history {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 40px;
+        }
+        
+        .fasting-active .timer-display {
+            color: #28a745;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="food-search-container">
+        <a href="/" class="back-link">← Back to Dashboard</a>
+        
+        <div class="search-section">
+            <h1>Food Database Search</h1>
+            <p>Search for foods by name or scan barcodes to quickly find products.</p>
+            
+            <div class="search-tabs">
+                <button class="search-tab active" onclick="switchTab('search')">Search by Name</button>
+                <button class="search-tab" onclick="switchTab('barcode')">Scan Barcode</button>
+                <button class="search-tab" onclick="switchTab('manual')">Manual Input</button>
+                <button class="search-tab" onclick="switchTab('fasting')">Fasting</button>
+            </div>
+            
+            <!-- Search by Name Tab -->
+            <div id="search-tab" class="search-content active">
+                <div class="search-input-group">
+                    <input type="text" id="food-search-input" placeholder="Search for a food (e.g., 'apple', 'chicken breast', 'yogurt')...">
+                    <button id="food-search-button">Search</button>
+                </div>
+            </div>
+            
+            <!-- Barcode Scanner Tab -->
+            <div id="barcode-tab" class="search-content">
+                <div class="barcode-scanner-container">
+                    <div class="barcode-scanner" id="barcode-scanner">
+                        <video id="scanner-video" autoplay></video>
+                        <div class="scanner-overlay"></div>
+                    </div>
+                    <div class="scanner-controls">
+                        <button class="scanner-btn" id="start-scanner">Start Scanner</button>
+                        <button class="scanner-btn stop" id="stop-scanner" style="display: none;">Stop Scanner</button>
+                    </div>
+                </div>
+                
+                <div class="manual-barcode">
+                    <p>Or enter barcode manually:</p>
+                    <input type="text" id="manual-barcode-input" placeholder="Enter barcode number...">
+                    <button id="manual-barcode-button">Search</button>
+                </div>
+                
+                <div id="barcode-result"></div>
+            </div>
+            
+            <!-- Manual Input Tab -->
+            <div id="manual-tab" class="search-content">
+                <div class="manual-input-form">
+                    <h3>Manual Food Entry</h3>
+                    <p>Enter your food details manually to log calories and macros.</p>
+                    
+                    <form id="manual-food-form">
+                        <div class="form-group">
+                            <label for="manual-food-name">Food Name:</label>
+                            <input type="text" id="manual-food-name" name="food_name" placeholder="e.g., Homemade Chicken Salad" required>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="manual-calories">Calories:</label>
+                                <input type="number" id="manual-calories" name="calories" min="0" step="0.1" placeholder="0" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="manual-protein">Protein (g):</label>
+                                <input type="number" id="manual-protein" name="protein" min="0" step="0.1" placeholder="0">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="manual-carbs">Carbs (g):</label>
+                                <input type="number" id="manual-carbs" name="carbs" min="0" step="0.1" placeholder="0">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="manual-fat">Fat (g):</label>
+                                <input type="number" id="manual-fat" name="fat" min="0" step="0.1" placeholder="0">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="manual-quantity">Quantity:</label>
+                            <input type="number" id="manual-quantity" name="quantity" min="0.1" step="0.1" value="1" required>
+                        </div>
+                        
+                        <button type="submit" class="manual-submit-btn">Log Food Entry</button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Fasting Tab -->
+            <div id="fasting-tab" class="search-content">
+                <div class="fasting-container">
+                    <h3>Fasting Tracker</h3>
+                    <p>Track your intermittent fasting periods and monitor your progress.</p>
+                    
+                    <!-- Current Fast Status -->
+                    <div id="current-fast-status" class="fasting-status">
+                        <div class="fasting-timer">
+                            <h4>Current Fast</h4>
+                            <div id="fasting-timer-display" class="timer-display">--:--:--</div>
+                            <div id="fasting-duration" class="duration-text">Not fasting</div>
+                        </div>
+                        
+                        <div class="fasting-controls">
+                            <button id="start-fast-btn" class="fast-btn start">Start Fast</button>
+                            <button id="end-fast-btn" class="fast-btn end" style="display: none;">End Fast</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Fasting Stats -->
+                    <div class="fasting-stats">
+                        <h4>Your Stats</h4>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <span class="stat-label">Total Fasts</span>
+                                <span id="total-fasts" class="stat-value">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Total Hours</span>
+                                <span id="total-hours" class="stat-value">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Longest Fast</span>
+                                <span id="longest-fast" class="stat-value">0h</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Average Fast</span>
+                                <span id="average-fast" class="stat-value">0h</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Fasting History -->
+                    <div class="fasting-history">
+                        <h4>Recent Fasts</h4>
+                        <div id="fasting-history-list" class="history-list">
+                            <p class="no-history">No fasting history yet. Start your first fast!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="food-results" class="food-results"></div>
+    </div>
+
+    <script>
+        let codeReader = null;
+        let isScanning = false;
+        
+        // Tab switching
+        function switchTab(tabName) {
+            console.log('Switching to tab:', tabName);
+            
+            if (tabName === 'fasting') {
+                alert('Fasting tab clicked!');
+            }
+            
+            // Update tab buttons
+            document.querySelectorAll('.search-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Update content
+            document.querySelectorAll('.search-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            const targetContent = document.getElementById(tabName + '-tab');
+            console.log('Target content element:', targetContent);
+            
+            if (targetContent) {
+                targetContent.classList.add('active');
+                console.log('Tab activated successfully');
+            } else {
+                console.error('Could not find content for tab:', tabName);
+            }
+            
+            // Stop scanner if switching away from barcode tab
+            if (tabName !== 'barcode' && isScanning) {
+                stopScanner();
+            }
+        }
+        
+        // Barcode scanner functionality
+        document.getElementById('start-scanner').addEventListener('click', startScanner);
+        document.getElementById('stop-scanner').addEventListener('click', stopScanner);
+        document.getElementById('manual-barcode-button').addEventListener('click', searchByManualBarcode);
+        
+        function startScanner() {
+            if (!codeReader) {
+                codeReader = new ZXing.BrowserMultiFormatReader();
+            }
+            
+            codeReader.decodeFromVideoDevice(null, 'scanner-video', (result, err) => {
+                if (result) {
+                    console.log('Barcode detected:', result.text);
+                    searchByBarcode(result.text);
+                    stopScanner();
+                }
+                if (err && !(err instanceof ZXing.NotFoundException)) {
+                    console.error('Scanner error:', err);
+                }
+            });
+            
+            isScanning = true;
+            document.getElementById('start-scanner').style.display = 'none';
+            document.getElementById('stop-scanner').style.display = 'inline-block';
+        }
+        
+        function stopScanner() {
+            if (codeReader) {
+                codeReader.reset();
+            }
+            isScanning = false;
+            document.getElementById('start-scanner').style.display = 'inline-block';
+            document.getElementById('stop-scanner').style.display = 'none';
+        }
+        
+        function searchByManualBarcode() {
+            const barcode = document.getElementById('manual-barcode-input').value.trim();
+            if (!barcode) {
+                alert('Please enter a barcode');
+                return;
+            }
+            searchByBarcode(barcode);
+        }
+        
+        function searchByBarcode(barcode) {
+            const resultDiv = document.getElementById('barcode-result');
+            resultDiv.innerHTML = '<div class="loading">Searching for barcode...</div>';
+            
+            fetch(`/food/barcode/${barcode}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        resultDiv.innerHTML = `
+                            <div class="barcode-error">
+                                <strong>Barcode not found:</strong> ${data.error}
+                                <br>Barcode: ${data.barcode || barcode}
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    const food = data.food;
+                    const nutrition = food.nutrition || {};
+                    const servingSizes = food.common_serving_sizes || [];
+                    const defaultServing = food.default_serving_size || null;
+                    let servingOptions = '';
+                    servingSizes.forEach(serving => {
+                        servingOptions += `<option value="${serving.id}" ${serving.is_default ? 'selected' : ''}>${serving.description} (${serving.grams_equivalent}g)</option>`;
+                    });
+                    
+                    resultDiv.innerHTML = `
+                        <div class="barcode-result">
+                            <h3>${food.name}</h3>
+                            ${food.brand ? `<p><strong>Brand:</strong> ${food.brand}</p>` : ''}
+                            ${food.category ? `<p><strong>Category:</strong> ${food.category}</p>` : ''}
+                            <p><strong>Barcode:</strong> <span class="barcode">${food.barcode}</span></p>
+                            <div class="quantity-group">
+                                <label>Serving Size:</label>
+                                <select class="barcode-serving-size-select" data-food-id="${food.id}">
+                                    ${servingOptions}
+                                </select>
+                                <label>Quantity:</label>
+                                <input type="number" id="barcode-quantity" value="1" min="0.1" step="0.1" class="quantity-input">
+                            </div>
+                            <div class="nutrition-info" id="barcode-nutrition">
+                                <div class="nutrition-row">
+                                    <span class="nutrition-label">Calories:</span>
+                                    <span class="nutrition-value">${nutrition.calories || 0}</span>
+                                </div>
+                                <div class="nutrition-row">
+                                    <span class="nutrition-label">Protein:</span>
+                                    <span class="nutrition-value">${nutrition.protein || 0}g</span>
+                                </div>
+                                <div class="nutrition-row">
+                                    <span class="nutrition-label">Carbs:</span>
+                                    <span class="nutrition-value">${nutrition.carbs || 0}g</span>
+                                </div>
+                                <div class="nutrition-row">
+                                    <span class="nutrition-label">Fat:</span>
+                                    <span class="nutrition-value">${nutrition.fat || 0}g</span>
+                                </div>
+                            </div>
+                            <button onclick="logFood('${food.name.replace(/'/g, "\\'")}', ${nutrition.calories || 0}, ${nutrition.protein || 0}, ${nutrition.carbs || 0}, ${nutrition.fat || 0}, ${food.id}, true)" class="log-food-btn">
+                                Log Food
+                            </button>
+                        </div>
+                    `;
+                    // Add event listeners for serving size and quantity changes
+                    const select = document.querySelector('.barcode-serving-size-select');
+                    const quantityInput = document.getElementById('barcode-quantity');
+                    if (select) {
+                        select.addEventListener('change', function() {
+                            updateBarcodeNutrition(food.id);
+                        });
+                    }
+                    if (quantityInput) {
+                        quantityInput.addEventListener('input', function() {
+                            updateBarcodeNutrition(food.id);
+                        });
+                    }
+                    function updateBarcodeNutrition(foodId) {
+                        const select = document.querySelector('.barcode-serving-size-select');
+                        const servingSizeId = select ? select.value : null;
+                        const quantityInput = document.getElementById('barcode-quantity');
+                        const quantity = quantityInput ? parseFloat(quantityInput.value) : 1;
+                        fetch(`/food/nutrition/${foodId}?serving_size_id=${servingSizeId}&amount=${quantity}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                const nutrition = data.nutrition || {};
+                                const nutritionDiv = document.getElementById('barcode-nutrition');
+                                if (nutritionDiv) {
+                                    nutritionDiv.innerHTML = `
+                                        <div class='nutrition-row'><span class='nutrition-label'>Calories:</span><span class='nutrition-value'>${nutrition.calories.toFixed(0)}</span></div>
+                                        <div class='nutrition-row'><span class='nutrition-label'>Protein:</span><span class='nutrition-value'>${nutrition.protein.toFixed(1)}g</span></div>
+                                        <div class='nutrition-row'><span class='nutrition-label'>Carbs:</span><span class='nutrition-value'>${nutrition.carbs.toFixed(1)}g</span></div>
+                                        <div class='nutrition-row'><span class='nutrition-label'>Fat:</span><span class='nutrition-value'>${nutrition.fat.toFixed(1)}g</span></div>
+                                    `;
+                                }
+                            });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    resultDiv.innerHTML = `
+                        <div class="barcode-error">
+                            Error searching for barcode. Please try again.
+                        </div>
+                    `;
+                });
+        }
+        
+        // Original search functionality
+        document.getElementById('food-search-button').addEventListener('click', function() {
+            searchFood();
+        });
+        
+        document.getElementById('food-search-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchFood();
+            }
+        });
+        
+        function searchFood() {
+            var query = document.getElementById('food-search-input').value.trim();
+            if (!query) {
+                alert('Please enter a search term');
+                return;
+            }
+            
+            var resultsDiv = document.getElementById('food-results');
+            resultsDiv.innerHTML = '<div class="loading">Searching...</div>';
+            
+            fetch('/food/search?q=' + encodeURIComponent(query))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        resultsDiv.innerHTML = '<div class="no-results">' + data.error + '</div>';
+                        return;
+                    }
+                    
+                    const foods = data.foods || [];
+                    if (foods.length === 0) {
+                        resultsDiv.innerHTML = '<div class="no-results">No foods found. Try a different search term.</div>';
+                        return;
+                    }
+                    
+                    let html = '';
+                    foods.forEach(food => {
+                        const nutrition = food.nutrition || {};
+                        const calories = nutrition.calories || 0;
+                        const protein = nutrition.protein || 0;
+                        const carbs = nutrition.carbs || 0;
+                        const fat = nutrition.fat || 0;
+                        const servingSizes = food.common_serving_sizes || [];
+                        const defaultServing = food.default_serving_size || null;
+                        let servingOptions = '';
+                        servingSizes.forEach(serving => {
+                            servingOptions += `<option value="${serving.id}" ${serving.is_default ? 'selected' : ''}>${serving.description} (${serving.grams_equivalent}g)</option>`;
+                        });
+                        html += `
+                            <div class="food-product">
+                                <div class="food-info">
+                                    <h3>${food.name}</h3>
+                                    ${food.brand ? `<p class="brand">${food.brand}</p>` : ''}
+                                    ${food.category ? `<p class="category">${food.category}</p>` : ''}
+                                    ${food.barcode ? `<p class="barcode">Barcode: ${food.barcode}</p>` : ''}
+                                </div>
+                                <div class="quantity-group">
+                                    <label>Serving Size:</label>
+                                    <select class="serving-size-select" data-food-id="${food.id}">
+                                        ${servingOptions}
+                                    </select>
+                                    <label>Quantity:</label>
+                                    <input type="number" id="quantity-${food.id}" value="1" min="0.1" step="0.1" class="quantity-input">
+                                </div>
+                                <div class="nutrition-info" id="nutrition-${food.id}">
+                                    <div class="nutrition-row">
+                                        <span class="nutrition-label">Calories:</span>
+                                        <span class="nutrition-value">${calories.toFixed(0)}</span>
+                                    </div>
+                                    <div class="nutrition-row">
+                                        <span class="nutrition-label">Protein:</span>
+                                        <span class="nutrition-value">${protein.toFixed(1)}g</span>
+                                    </div>
+                                    <div class="nutrition-row">
+                                        <span class="nutrition-label">Carbs:</span>
+                                        <span class="nutrition-value">${carbs.toFixed(1)}g</span>
+                                    </div>
+                                    <div class="nutrition-row">
+                                        <span class="nutrition-label">Fat:</span>
+                                        <span class="nutrition-value">${fat.toFixed(1)}g</span>
+                                    </div>
+                                </div>
+                                <button onclick="logFood('${food.name.replace(/'/g, "\\'")}', ${calories}, ${protein}, ${carbs}, ${fat}, ${food.id})" class="log-food-btn">
+                                    Log Food
+                                </button>
+                            </div>
+                        `;
+                    });
+                    resultsDiv.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    resultsDiv.innerHTML = '<div class="no-results">Error searching for foods. Please try again.</div>';
+                });
+        }
+        
+        function logFood(foodName, calories, protein, carbs, fat, foodId, isBarcode) {
+            var quantity = document.getElementById('quantity-' + foodId) || document.getElementById('barcode-quantity');
+            if (!quantity || quantity.value <= 0) {
+                alert('Please enter a valid quantity');
+                return;
+            }
+            
+            var quantityValue = parseFloat(quantity.value);
+            
+            // Calculate adjusted values based on quantity
+            var multiplier = quantityValue / 100.0;
+            var adjustedCalories = calories * multiplier;
+            var adjustedProtein = protein * multiplier;
+            var adjustedCarbs = carbs * multiplier;
+            var adjustedFat = fat * multiplier;
+            
+            var foodData = {
+                name: foodName,
+                calories: adjustedCalories,
+                protein: adjustedProtein,
+                carbs: adjustedCarbs,
+                fat: adjustedFat,
+                quantity: quantityValue
+            };
+            
+            fetch('/food/food_entry', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(foodData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    // Clear barcode result if it exists
+                    const barcodeResult = document.getElementById('barcode-result');
+                    if (barcodeResult) {
+                        barcodeResult.innerHTML = '';
+                    }
+                    // Clear manual barcode input
+                    const manualInput = document.getElementById('manual-barcode-input');
+                    if (manualInput) {
+                        manualInput.value = '';
+                    }
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to log food'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error logging food. Please try again.');
+            });
+        }
+        
+        // Clean up scanner when page is unloaded
+        window.addEventListener('beforeunload', function() {
+            if (codeReader) {
+                codeReader.reset();
+            }
+        });
+
+        // Add event listeners for serving size and quantity changes after rendering
+        document.querySelectorAll('.serving-size-select').forEach(select => {
+            select.addEventListener('change', function() {
+                const foodId = this.getAttribute('data-food-id');
+                updateNutrition(foodId);
+            });
+        });
+        document.querySelectorAll('.quantity-input').forEach(input => {
+            input.addEventListener('input', function() {
+                const foodId = this.id.replace('quantity-', '');
+                updateNutrition(foodId);
+            });
+        });
+
+        function updateNutrition(foodId) {
+            const select = document.querySelector(`.serving-size-select[data-food-id='${foodId}']`);
+            const servingSizeId = select ? select.value : null;
+            const quantityInput = document.getElementById(`quantity-${foodId}`);
+            const quantity = quantityInput ? parseFloat(quantityInput.value) : 1;
+            fetch(`/food/nutrition/${foodId}?serving_size_id=${servingSizeId}&amount=${quantity}`)
+                .then(response => response.json())
+                .then(data => {
+                    const nutrition = data.nutrition || {};
+                    const nutritionDiv = document.getElementById(`nutrition-${foodId}`);
+                    if (nutritionDiv) {
+                        nutritionDiv.innerHTML = `
+                            <div class='nutrition-row'><span class='nutrition-label'>Calories:</span><span class='nutrition-value'>${nutrition.calories.toFixed(0)}</span></div>
+                            <div class='nutrition-row'><span class='nutrition-label'>Protein:</span><span class='nutrition-value'>${nutrition.protein.toFixed(1)}g</span></div>
+                            <div class='nutrition-row'><span class='nutrition-label'>Carbs:</span><span class='nutrition-value'>${nutrition.carbs.toFixed(1)}g</span></div>
+                            <div class='nutrition-row'><span class='nutrition-label'>Fat:</span><span class='nutrition-value'>${nutrition.fat.toFixed(1)}g</span></div>
+                        `;
+                    }
+                });
+        }
+        
+        // Manual Input Form Functionality
+        document.getElementById('manual-food-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            submitManualFood();
+        });
+        
+        function submitManualFood() {
+            const form = document.getElementById('manual-food-form');
+            const submitBtn = form.querySelector('.manual-submit-btn');
+            const originalText = submitBtn.textContent;
+            
+            // Disable submit button and show loading state
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Logging...';
+            
+            // Get form data
+            const formData = {
+                name: document.getElementById('manual-food-name').value.trim(),
+                calories: parseFloat(document.getElementById('manual-calories').value) || 0,
+                protein: parseFloat(document.getElementById('manual-protein').value) || 0,
+                carbs: parseFloat(document.getElementById('manual-carbs').value) || 0,
+                fat: parseFloat(document.getElementById('manual-fat').value) || 0,
+                quantity: parseFloat(document.getElementById('manual-quantity').value) || 1
+            };
+            
+            // Validate required fields
+            if (!formData.name) {
+                showManualFormMessage('Please enter a food name.', 'error');
+                resetSubmitButton(submitBtn, originalText);
+                return;
+            }
+            
+            if (formData.calories < 0) {
+                showManualFormMessage('Calories cannot be negative.', 'error');
+                resetSubmitButton(submitBtn, originalText);
+                return;
+            }
+            
+            if (formData.protein < 0 || formData.carbs < 0 || formData.fat < 0) {
+                showManualFormMessage('Macros cannot be negative.', 'error');
+                resetSubmitButton(submitBtn, originalText);
+                return;
+            }
+            
+            // Calculate adjusted values based on quantity
+            const multiplier = formData.quantity / 1.0;
+            const adjustedData = {
+                name: formData.name,
+                calories: formData.calories * multiplier,
+                protein: formData.protein * multiplier,
+                carbs: formData.carbs * multiplier,
+                fat: formData.fat * multiplier,
+                quantity: formData.quantity
+            };
+            
+            // Submit to server
+            fetch('/food/food_entry', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(adjustedData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showManualFormMessage(data.message, 'success');
+                    form.reset();
+                    document.getElementById('manual-quantity').value = '1';
+                } else {
+                    showManualFormMessage('Error: ' + (data.error || 'Failed to log food'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showManualFormMessage('Error logging food. Please try again.', 'error');
+            })
+            .finally(() => {
+                resetSubmitButton(submitBtn, originalText);
+            });
+        }
+        
+        function showManualFormMessage(message, type) {
+            // Remove any existing messages
+            const existingMessage = document.querySelector('.form-success, .form-error');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+            
+            // Create new message
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type === 'success' ? 'form-success' : 'form-error';
+            messageDiv.textContent = message;
+            
+            // Insert message after the form
+            const form = document.getElementById('manual-food-form');
+            form.parentNode.insertBefore(messageDiv, form.nextSibling);
+            
+            // Auto-remove success messages after 3 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    if (messageDiv.parentNode) {
+                        messageDiv.remove();
+                    }
+                }, 3000);
+            }
+        }
+        
+        function resetSubmitButton(button, originalText) {
+            button.disabled = false;
+            button.textContent = originalText;
+        }
+
+        // Fasting Functionality
+        let fastingTimer = null;
+        let currentFastStartTime = null;
+        
+        // Initialize fasting functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing fasting functionality');
+            console.log('Start fast button:', document.getElementById('start-fast-btn'));
+            console.log('End fast button:', document.getElementById('end-fast-btn'));
+            console.log('Fasting tab content:', document.getElementById('fasting-tab'));
+            
+            loadFastingData();
+            setupFastingEventListeners();
+        });
+        
+        function setupFastingEventListeners() {
+            console.log('Setting up fasting event listeners');
+            const startBtn = document.getElementById('start-fast-btn');
+            const endBtn = document.getElementById('end-fast-btn');
+            
+            console.log('Start button found:', startBtn);
+            console.log('End button found:', endBtn);
+            
+            if (startBtn) {
+                startBtn.addEventListener('click', startFast);
+                console.log('Start fast event listener added');
+            } else {
+                console.error('Start fast button not found');
+            }
+            
+            if (endBtn) {
+                endBtn.addEventListener('click', endFast);
+                console.log('End fast event listener added');
+            } else {
+                console.error('End fast button not found');
+            }
+        }
+        
+        function startFast() {
+            fetch('/food/fasting/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+                
+                currentFastStartTime = new Date(data.start_time);
+                updateFastingUI(true);
+                startFastingTimer();
+                loadFastingData(); // Refresh stats and history
+            })
+            .catch(error => {
+                console.error('Error starting fast:', error);
+                alert('Error starting fast. Please try again.');
+            });
+        }
+        
+        function endFast() {
+            fetch('/food/fasting/end', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+                
+                alert(`Fast ended! Duration: ${data.duration}`);
+                updateFastingUI(false);
+                stopFastingTimer();
+                loadFastingData(); // Refresh stats and history
+            })
+            .catch(error => {
+                console.error('Error ending fast:', error);
+                alert('Error ending fast. Please try again.');
+            });
+        }
+        
+        function startFastingTimer() {
+            if (fastingTimer) {
+                clearInterval(fastingTimer);
+            }
+            
+            fastingTimer = setInterval(updateFastingTimer, 1000);
+            updateFastingTimer();
+        }
+        
+        function stopFastingTimer() {
+            if (fastingTimer) {
+                clearInterval(fastingTimer);
+                fastingTimer = null;
+            }
+            currentFastStartTime = null;
+        }
+        
+        function updateFastingTimer() {
+            if (!currentFastStartTime) return;
+            
+            const now = new Date();
+            const diff = now - currentFastStartTime;
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            
+            const timerDisplay = document.getElementById('fasting-timer-display');
+            const durationText = document.getElementById('fasting-duration');
+            
+            if (timerDisplay) {
+                timerDisplay.textContent = 
+                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+            
+            if (durationText) {
+                durationText.textContent = `${hours}h ${minutes}m ${seconds}s`;
+            }
+        }
+        
+        function updateFastingUI(isActive) {
+            const startBtn = document.getElementById('start-fast-btn');
+            const endBtn = document.getElementById('end-fast-btn');
+            const statusDiv = document.getElementById('current-fast-status');
+            const timerDisplay = document.getElementById('fasting-timer-display');
+            const durationText = document.getElementById('fasting-duration');
+            
+            if (isActive) {
+                startBtn.style.display = 'none';
+                endBtn.style.display = 'inline-block';
+                statusDiv.classList.add('fasting-active');
+                timerDisplay.textContent = '00:00:00';
+                durationText.textContent = 'Fast in progress...';
+            } else {
+                startBtn.style.display = 'inline-block';
+                endBtn.style.display = 'none';
+                statusDiv.classList.remove('fasting-active');
+                timerDisplay.textContent = '--:--:--';
+                durationText.textContent = 'Not fasting';
+            }
+        }
+        
+        function loadFastingData() {
+            // Load current fast status
+            fetch('/food/fasting/current')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.active) {
+                        currentFastStartTime = new Date(data.start_time);
+                        updateFastingUI(true);
+                        startFastingTimer();
+                    } else {
+                        updateFastingUI(false);
+                    }
+                })
+                .catch(error => console.error('Error loading current fast:', error));
+            
+            // Load fasting stats
+            fetch('/food/fasting/stats')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('total-fasts').textContent = data.total_fasts;
+                    document.getElementById('total-hours').textContent = data.total_hours;
+                    document.getElementById('longest-fast').textContent = formatDuration(data.longest_fast);
+                    document.getElementById('average-fast').textContent = formatDuration(data.average_fast);
+                })
+                .catch(error => console.error('Error loading fasting stats:', error));
+            
+            // Load fasting history
+            fetch('/food/fasting/history')
+                .then(response => response.json())
+                .then(data => {
+                    const historyList = document.getElementById('fasting-history-list');
+                    
+                    if (data.history.length === 0) {
+                        historyList.innerHTML = '<p class="no-history">No fasting history yet. Start your first fast!</p>';
+                        return;
+                    }
+                    
+                    const historyHTML = data.history.map(fast => {
+                        const startDate = new Date(fast.start_time);
+                        const endDate = fast.end_time ? new Date(fast.end_time) : null;
+                        const dateStr = startDate.toLocaleDateString();
+                        const timeStr = startDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        
+                        return `
+                            <div class="history-item">
+                                <div class="history-date">
+                                    <div>${dateStr}</div>
+                                    <div style="font-size: 12px; color: #999;">${timeStr}</div>
+                                </div>
+                                <div class="history-duration">${fast.duration}</div>
+                            </div>
+                        `;
+                    }).join('');
+                    
+                    historyList.innerHTML = historyHTML;
+                })
+                .catch(error => console.error('Error loading fasting history:', error));
+        }
+        
+        function formatDuration(minutes) {
+            if (!minutes || minutes === 0) return '0h';
+            const hours = Math.floor(minutes / 60);
+            const remainingMinutes = minutes % 60;
+            if (hours > 0) {
+                return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+            } else {
+                return `${remainingMinutes}m`;
+            }
+        }
+    </script>
+</body>
+</html> 

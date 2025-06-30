@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Workout</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/fitness.css">
+    <link rel="stylesheet" href="/static/workout_entry.css">
+</head>
+<body>
+    
+    <div class="workout-container">
+        <!-- Modern Header -->
+        <header class="workout-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <a href="/#activity?tab=workouts" class="back-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 12H5M12 19l-7-7 7-7"/>
+                        </svg>
+                        Back
+                    </a>
+                </div>
+                <div class="header-center">
+                    <h1 class="page-title" id="exercise-title"></h1>
+                </div>
+                <div class="header-right">
+                    <button id="favorite-exercise" class="favorite-btn" aria-label="Toggle favorite">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Modern Tab Navigation -->
+        <nav class="workout-nav">
+            <div class="nav-container">
+                <button class="nav-tab active" id="tab-track">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 12l2 2 4-4M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"/>
+                    </svg>
+                    Track Sets
+                </button>
+                <button class="nav-tab" id="tab-history">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    History
+                </button>
+                <button class="nav-tab" id="tab-log-new">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    New Exercise
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="workout-main">
+            <!-- Track Section -->
+            <section id="track-section" class="track-section">
+                <div class="content-grid">
+                    <!-- Left Column: Log Set Form -->
+                    <div class="form-column">
+                        <div class="form-card">
+                            <div class="card-header">
+                                <h2 class="card-title">Log New Set</h2>
+                                <p class="card-subtitle">Add your latest set to track progress</p>
+                            </div>
+                            
+                            <form id="log-set-form" class="modern-form">
+                                <input type="hidden" id="category-id" name="category_id">
+                                <input type="hidden" id="exercise-name" name="exercise">
+                                <input type="hidden" id="exercise-id" name="exercise_id">
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="weight" class="form-label">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M6 3h12l4 6-10 13L2 9z"/>
+                                            </svg>
+                                            Weight (lbs)
+                                        </label>
+                                        <div class="input-group">
+                                            <button type="button" class="input-btn minus" id="weight-minus" aria-label="Decrease weight">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M5 12h14"/>
+                                                </svg>
+                                            </button>
+                                            <input type="number" id="weight" name="weight" step="0.1" required class="form-input">
+                                            <button type="button" class="input-btn plus" id="weight-plus" aria-label="Increase weight">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M12 5v14M5 12h14"/>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="reps" class="form-label">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                                            </svg>
+                                            Reps
+                                        </label>
+                                        <div class="input-group">
+                                            <button type="button" class="input-btn minus" id="reps-minus" aria-label="Decrease reps">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M5 12h14"/>
+                                                </svg>
+                                            </button>
+                                            <input type="number" id="reps" name="reps" required class="form-input">
+                                            <button type="button" class="input-btn plus" id="reps-plus" aria-label="Increase reps">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M12 5v14M5 12h14"/>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Total Weight Display for Barbell Exercises -->
+                                <div id="total-weight-display" class="form-group" style="display: none;">
+                                    <label class="form-label">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                        </svg>
+                                        Total Weight (including barbell)
+                                    </label>
+                                    <div class="total-weight-value" id="total-weight-value" style="
+                                        background: #f8f9fa;
+                                        padding: 12px 16px;
+                                        border-radius: 8px;
+                                        font-size: 18px;
+                                        font-weight: bold;
+                                        color: #007bff;
+                                        text-align: center;
+                                        border: 2px solid #e9ecef;
+                                    ">
+                                        <span id="user-weight">0</span> + <span id="barbell-weight">45</span> = <span id="total-weight">45</span> lbs
+                                    </div>
+                                </div>
+                                
+                                <button type="submit" class="submit-btn">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 5v14M5 12h14"/>
+                                    </svg>
+                                    Add Set
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Sets -->
+                    <div class="stats-column">
+                        <!-- Personal Record Summary -->
+                        <div class="pr-summary">
+                            <span>🏆 Personal Record: <span id="pr-highest-weight">-</span></span>
+                        </div>
+                        <!-- Today's Sets Card -->
+                        <div class="sets-card">
+                            <div class="card-header">
+                                <h3 class="card-title">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M9 12l2 2 4-4M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"/>
+                                    </svg>
+                                    Today's Sets
+                                </h3>
+                                <span class="sets-count" id="sets-count">0 sets</span>
+                            </div>
+                            <div class="sets-table-container">
+                                <div class="table-container">
+                                    <table id="sets-table" class="modern-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Set</th>
+                                                <th>Weight</th>
+                                                <th id="total-weight-header" style="display: none;">Total Weight</th>
+                                                <th>Reps</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- History Section -->
+            <section id="history-section" class="history-section" style="display:none;">
+                <div class="history-header">
+                    <h2 class="section-title">Workout History</h2>
+                    <p class="section-subtitle">Past performance for <span id="history-exercise"></span></p>
+                </div>
+                <div class="history-table-container">
+                    <div class="table-container">
+                        <table id="history-table" class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Set</th>
+                                    <th>Weight</th>
+                                    <th id="history-total-weight-header" style="display: none;">Total Weight</th>
+                                    <th>Reps</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Modern Modal for New Exercise Selection -->
+        <div id="workout-modal" class="modern-modal">
+            <div class="modal-overlay"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title">Start New Workout</h2>
+                    <button class="modal-close" id="close-workout-modal">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 6L6 18M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="modal-progress">
+                    <div class="progress-step active" id="step-1">
+                        <div class="step-number">1</div>
+                        <div class="step-label">Category</div>
+                    </div>
+                    <div class="progress-line"></div>
+                    <div class="progress-step" id="step-2">
+                        <div class="step-number">2</div>
+                        <div class="step-label">Exercise</div>
+                    </div>
+                </div>
+                
+                <div class="modal-body">
+                    <div id="modal-step-category" class="modal-step active">
+                        <h3 class="step-title">Select a Category</h3>
+                        <div id="category-list" class="option-grid"></div>
+                    </div>
+                    
+                    <div id="modal-step-exercise" class="modal-step">
+                        <h3 class="step-title">Select an Exercise</h3>
+                        <div id="exercise-list" class="option-grid"></div>
+                        <button type="button" id="show-custom-exercise-form" class="btn btn-secondary" style="margin-top: 16px;">+ Create New Exercise</button>
+                        <form id="custom-exercise-form" class="modern-form" style="display:none; margin-top: 16px;">
+                            <h4 style="margin-bottom: 8px;">Create Custom Exercise</h4>
+                            <div class="form-group">
+                                <label for="custom-exercise-name">Exercise Name*</label>
+                                <input type="text" id="custom-exercise-name" name="name" required maxlength="100" class="form-input" placeholder="Enter exercise name">
+                            </div>
+                            <div class="modal-actions">
+                                <button type="submit" class="btn btn-primary">Create Exercise</button>
+                            </div>
+                        </form>
+                        <div class="modal-actions">
+                            <button type="button" id="back-to-category" class="btn-secondary">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                                </svg>
+                                Back
+                            </button>
+                            <button type="button" id="cancel-workout-btn" class="btn-secondary">Cancel</button>
+                        </div>
+                    </div>
+                    <!-- New Review Step -->
+                    <div id="modal-step-review" class="modal-step" style="display:none;">
+                      <h3 class="step-title">Review & Build Workout Plan</h3>
+                      <div id="selected-exercises-list" class="option-grid" style="margin-bottom: 16px;"></div>
+                      <button type="button" id="add-another-exercise-btn" class="btn btn-secondary" style="margin-bottom: 16px;">+ Add Another Exercise</button>
+                      <div class="form-group">
+                        <label for="workout-name">Workout Name (optional):</label>
+                        <input type="text" id="workout-name" class="form-input" maxlength="100" placeholder="e.g. Chest Blast, Push Day">
+                      </div>
+                      <div class="modal-actions" style="margin-top: 16px;">
+                        <button type="button" id="back-to-exercise-btn" class="btn btn-secondary">Back</button>
+                        <button type="button" id="save-workout-btn" class="btn btn-primary">Save Workout</button>
+                      </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/static/workout_entry.js"></script>
+</body>
+</html>

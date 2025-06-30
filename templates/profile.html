@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile & Settings</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/profile.css">
+    <script type="module" src="/static/profile.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Profile & Settings</h1>
+            <a href="/" class="back-link">← Back to Dashboard</a>
+        </header>
+
+        <div class="profile-container">
+            <!-- Profile Section -->
+            <div class="profile-section">
+                <h2>Profile Information</h2>
+                <form id="profile-form">
+                    <div class="form-group">
+                        <label for="first_name">First Name</label>
+                        <input type="text" id="first_name" name="first_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="last_name">Last Name</label>
+                        <input type="text" id="last_name" name="last_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" name="username" value="{{ current_user.username or '' }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="weight">Weight (lbs)</label>
+                        <input type="number" id="weight" name="weight" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="height">Height (in)</label>
+                        <input type="number" id="height" name="height" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="birthdate">Birthdate</label>
+                        <input type="date" id="birthdate" name="birthdate">
+                    </div>
+                    <div class="form-group">
+                        <label for="age">Age</label>
+                        <input type="number" id="age" name="age">
+                    </div>
+                    <div class="form-group">
+                        <label for="sex">Sex</label>
+                        <select id="sex" name="sex">
+                            <option value="">Select Sex</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                        </select>
+                    </div>
+                    <button type="submit">Update Profile</button>
+                </form>
+            </div>
+
+            <!-- Settings Section -->
+            <div class="settings-section">
+                <h2>Settings</h2>
+                
+                <!-- Display Settings -->
+                <div class="settings-group">
+                    <h3>Display Settings</h3>
+                    <form id="display-settings-form">
+                        <div class="form-group">
+                            <label for="theme">Theme</label>
+                            <select id="theme" name="theme">
+                                <option value="light">Light</option>
+                                <option value="dark">Dark</option>
+                                <option value="auto">Auto</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="units">Units</label>
+                            <select id="units" name="units">
+                                <option value="imperial">Imperial (lbs, in)</option>
+                                <option value="metric">Metric (kg, cm)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="date-format">Date Format</label>
+                            <select id="date-format" name="date_format">
+                                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                                <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                                <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                            </select>
+                        </div>
+                        <button type="submit">Save Display Settings</button>
+                    </form>
+                </div>
+
+                <!-- Fitness Settings -->
+                <div class="settings-group">
+                    <h3>Fitness Settings</h3>
+                    <form id="fitness-settings-form">
+                        <div class="form-group">
+                            <label for="goal">Fitness Goal</label>
+                            <select id="goal" name="goal">
+                                <option value="lose">Lose Weight</option>
+                                <option value="maintain">Maintain Weight</option>
+                                <option value="gain">Gain Weight</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="weekly-goal">Weekly Goal (lbs)</label>
+                            <input type="number" id="weekly-goal" name="weekly_goal" step="0.1" min="0.1" max="2.0">
+                        </div>
+                        <div class="form-group">
+                            <label for="calorie-deficit">Daily Calorie Deficit/Surplus</label>
+                            <input type="number" id="calorie-deficit" name="calorie_deficit" step="50" min="-1000" max="1000">
+                        </div>
+                        <button type="submit">Save Fitness Settings</button>
+                    </form>
+                </div>
+
+                <!-- Notification Settings -->
+                <div class="settings-group">
+                    <h3>Notification Settings</h3>
+                    <form id="notification-settings-form">
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="email-notifications" name="email_notifications">
+                                Email Notifications
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label for="reminder-frequency">Reminder Frequency</label>
+                            <select id="reminder-frequency" name="reminder_frequency">
+                                <option value="never">Never</option>
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="reminder-time">Reminder Time</label>
+                            <input type="time" id="reminder-time" name="reminder_time">
+                        </div>
+                        <button type="submit">Save Notification Settings</button>
+                    </form>
+                </div>
+
+                <!-- Privacy Settings -->
+                <div class="settings-group">
+                    <h3>Privacy Settings</h3>
+                    <form id="privacy-settings-form">
+                        <div class="form-group">
+                            <label for="profile-visibility">Profile Visibility</label>
+                            <select id="profile-visibility" name="profile_visibility">
+                                <option value="private">Private</option>
+                                <option value="friends">Friends Only</option>
+                                <option value="public">Public</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="share-progress" name="share_progress">
+                                Share Progress
+                            </label>
+                        </div>
+                        <button type="submit">Save Privacy Settings</button>
+                    </form>
+                </div>
+
+                <!-- Data Settings -->
+                <div class="settings-group">
+                    <h3>Data Settings</h3>
+                    <form id="data-settings-form">
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="auto-backup" name="auto_backup">
+                                Auto Backup
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label for="data-retention-days">Data Retention (days)</label>
+                            <input type="number" id="data-retention-days" name="data_retention_days" min="30" max="3650">
+                        </div>
+                        <button type="submit">Save Data Settings</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Account Actions -->
+            <div class="account-section">
+                <h2>Account Actions</h2>
+                <div class="account-actions">
+                    <button id="export-data-btn" class="btn-secondary">Export Data</button>
+                    <button id="delete-account-btn" class="btn-danger">Delete Account</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Account Confirmation Modal -->
+    <div id="delete-modal" class="modal">
+        <div class="modal-content">
+            <h3>Delete Account</h3>
+            <p>Are you sure you want to delete your account? This action cannot be undone and will permanently delete all your data.</p>
+            <div class="modal-actions">
+                <button id="confirm-delete" class="btn-danger">Delete Account</button>
+                <button id="cancel-delete" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 
