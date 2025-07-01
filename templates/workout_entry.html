@@ -362,6 +362,44 @@
                         <div class="pr-summary">
                             <span>🏆 Personal Record: <span id="pr-highest-weight">-</span></span>
                         </div>
+                        
+                        <!-- Rest Timer Section -->
+                        <div class="rest-timer-card">
+                            <div class="card-header">
+                                <h3 class="card-title">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    Rest Timer
+                                </h3>
+                            </div>
+                            <div class="timer-display-container">
+                                <div class="timer-display" id="rest-timer-display">00:00</div>
+                                <div class="timer-controls">
+                                    <button id="start-timer" class="timer-btn start">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polygon points="5,3 19,12 5,21"/>
+                                        </svg>
+                                        Start
+                                    </button>
+                                    <button id="pause-timer" class="timer-btn pause" disabled>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="6" y="4" width="4" height="16"/>
+                                            <rect x="14" y="4" width="4" height="16"/>
+                                        </svg>
+                                        Pause
+                                    </button>
+                                    <button id="reset-timer" class="timer-btn reset">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="1,4 1,10 7,10"/>
+                                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                                        </svg>
+                                        Reset
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- Today's Sets Card -->
                         <div class="sets-card">
                             <div class="card-header">
