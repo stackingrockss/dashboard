@@ -736,6 +736,9 @@ async function checkIfBarbellExercise() {
         
         updateTotalWeight();
         updateFavoriteButton();
+        
+        // Reload previous session data now that we know if it's a barbell exercise
+        loadPreviousSession();
     } catch (error) {
         console.error('Error checking exercise equipment:', error);
         // Show user-friendly error message
@@ -966,6 +969,87 @@ async function initializePage() {
 }
 
 initializePage();
+
+async function loadPreviousSession() {
+    try {
+        if (!exerciseName) {
+            console.log('Exercise name not available yet, skipping previous session');
+            return;
+        }
+        
+        const resp = await fetch(`/fitness/api/previous_session/${encodeURIComponent(exerciseName)}`);
+        const data = await resp.json();
+        
+        const previousSessionCard = document.getElementById('previous-session-card');
+        const previousSessionDate = document.getElementById('previous-session-date');
+        const previousSessionTableBody = document.querySelector('#previous-session-table tbody');
+        const previousTotalWeightHeader = document.getElementById('previous-total-weight-header');
+        
+        if (!data.has_previous_session) {
+            // Hide the previous session card if no previous session exists
+            if (previousSessionCard) {
+                previousSessionCard.style.display = 'none';
+            }
+            return;
+        }
+        
+        // Show the previous session card
+        if (previousSessionCard) {
+            previousSessionCard.style.display = 'block';
+        }
+        
+        // Update the date
+        if (previousSessionDate) {
+            previousSessionDate.textContent = data.date_formatted;
+        }
+        
+        // Show/hide total weight header based on barbell exercise
+        if (previousTotalWeightHeader) {
+            previousTotalWeightHeader.style.display = isBarbellExercise ? 'table-cell' : 'none';
+        }
+        
+        // Populate the previous session table
+        if (previousSessionTableBody) {
+            previousSessionTableBody.innerHTML = '';
+            
+            data.sets.forEach(set => {
+                const row = document.createElement('tr');
+                const totalWeight = calculateTotalWeight(set.weight);
+                
+                // Create weight display with barbell info
+                let weightDisplay = `${set.weight} lbs`;
+                let totalWeightCell = '';
+                
+                if (isBarbellExercise) {
+                    totalWeightCell = `<td><strong>${totalWeight} lbs</strong></td>`;
+                } else {
+                    totalWeightCell = '';
+                }
+                
+                row.innerHTML = `
+                    <td>
+                        <div class="set-number">${set.set_number}</div>
+                    </td>
+                    <td>${weightDisplay}</td>
+                    ${totalWeightCell}
+                    <td>${set.reps}</td>
+                `;
+                
+                previousSessionTableBody.appendChild(row);
+            });
+        }
+        
+        console.log(`Previous session loaded: ${data.date_formatted} with ${data.total_sets} sets`);
+        
+    } catch (err) {
+        console.error('Error loading previous session:', err);
+        // Hide the card on error
+        const previousSessionCard = document.getElementById('previous-session-card');
+        if (previousSessionCard) {
+            previousSessionCard.style.display = 'none';
+        }
+    }
+}
 
 async function loadLastWorkoutDefaults() {
     try {

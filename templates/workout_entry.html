@@ -161,6 +161,35 @@
                         <div class="pr-summary">
                             <span>🏆 Personal Record: <span id="pr-highest-weight">-</span></span>
                         </div>
+                        
+                        <!-- Previous Session Card -->
+                        <div class="sets-card" id="previous-session-card" style="display: none;">
+                            <div class="card-header">
+                                <h3 class="card-title">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    Previous Session
+                                </h3>
+                                <span class="sets-count" id="previous-session-date">-</span>
+                            </div>
+                            <div class="sets-table-container">
+                                <div class="table-container">
+                                    <table id="previous-session-table" class="modern-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Set</th>
+                                                <th>Weight</th>
+                                                <th id="previous-total-weight-header" style="display: none;">Total Weight</th>
+                                                <th>Reps</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- Today's Sets Card -->
                         <div class="sets-card">
                             <div class="card-header">

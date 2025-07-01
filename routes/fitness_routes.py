@@ -1062,6 +1062,58 @@ def get_workouts_by_date():
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
+@fitness_bp.route('/api/previous_session/<exercise_name>')
+@login_required
+def get_previous_session(exercise_name):
+    """Get the previous workout session for a specific exercise."""
+    try:
+        from datetime import datetime
+        
+        # Get today's date
+        today = datetime.now().date()
+        
+        # Get all workouts for this exercise, excluding today
+        workouts = Workout.query.filter(
+            Workout.user_id == current_user.id,
+            Workout.exercise == exercise_name,
+            Workout.date < today
+        ).order_by(Workout.date.desc()).all()
+        
+        if not workouts:
+            return jsonify({
+                'has_previous_session': False,
+                'message': 'No previous sessions found for this exercise'
+            })
+        
+        # Get the most recent workout date (previous session)
+        previous_session_date = workouts[0].date
+        
+        # Get all sets from that session
+        previous_session_sets = [w for w in workouts if w.date == previous_session_date]
+        
+        # Format the response
+        sets_data = []
+        for i, workout in enumerate(previous_session_sets, 1):
+            sets_data.append({
+                'set_number': i,
+                'weight': workout.weight,
+                'reps': workout.reps,
+                'id': workout.id
+            })
+        
+        return jsonify({
+            'has_previous_session': True,
+            'date': previous_session_date.strftime('%Y-%m-%d'),
+            'date_formatted': previous_session_date.strftime('%B %d, %Y'),
+            'sets': sets_data,
+            'total_sets': len(sets_data)
+        })
+        
+    except Exception as e:
+        print(f"Error in get_previous_session: {str(e)}")
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 @fitness_bp.route('/api/favorites', methods=['GET'])
 @login_required
 def get_favorite_exercises():

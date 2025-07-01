@@ -845,4 +845,45 @@ body {
     padding: 4px 8px;
     border-radius: 6px;
     backdrop-filter: blur(10px);
-} 
+}
+
+/* Previous Session Card Styling */
+#previous-session-card {
+    border: 2px solid rgba(102, 126, 234, 0.2);
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+    position: relative;
+}
+
+#previous-session-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 20px 20px 0 0;
+}
+
+#previous-session-card .card-title {
+    color: #667eea;
+}
+
+#previous-session-card .sets-count {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.8), rgba(118, 75, 162, 0.8));
+    color: white;
+    font-size: 0.75rem;
+}
+
+#previous-session-table {
+    opacity: 0.9;
+}
+
+#previous-session-table th {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+    color: #667eea;
+}
+
+#previous-session-table tr:hover {
+    background: rgba(102, 126, 234, 0.08);
+}
