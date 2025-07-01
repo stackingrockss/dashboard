@@ -1011,3 +1011,138 @@ async function loadLastWorkoutDefaults() {
         console.error('Error loading last workout defaults:', err);
     }
 }
+
+// Rest Timer Functionality
+let restTimerInterval = null;
+let restTimerStartTime = null;
+let restTimerElapsedTime = 0; // in seconds
+let restTimerState = 'stopped'; // 'stopped', 'running', 'paused'
+
+// DOM elements for timer
+const restTimerDisplay = document.getElementById('rest-timer-display');
+const startTimerBtn = document.getElementById('start-timer');
+const pauseTimerBtn = document.getElementById('pause-timer');
+const resetTimerBtn = document.getElementById('reset-timer');
+
+function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
+function updateTimerDisplay() {
+    if (restTimerDisplay) {
+        restTimerDisplay.textContent = formatTime(restTimerElapsedTime);
+        
+        // Update display class based on state
+        restTimerDisplay.className = 'timer-display';
+        if (restTimerState === 'running') {
+            restTimerDisplay.classList.add('running');
+        } else if (restTimerState === 'paused') {
+            restTimerDisplay.classList.add('paused');
+        }
+    }
+}
+
+function startRestTimer() {
+    if (restTimerState === 'stopped') {
+        // Starting from zero
+        restTimerElapsedTime = 0;
+        restTimerStartTime = Date.now();
+    } else if (restTimerState === 'paused') {
+        // Resuming from pause
+        restTimerStartTime = Date.now() - (restTimerElapsedTime * 1000);
+    }
+    
+    restTimerState = 'running';
+    
+    // Clear any existing interval
+    if (restTimerInterval) {
+        clearInterval(restTimerInterval);
+    }
+    
+    // Start the timer interval
+    restTimerInterval = setInterval(() => {
+        restTimerElapsedTime = Math.floor((Date.now() - restTimerStartTime) / 1000);
+        updateTimerDisplay();
+    }, 1000);
+    
+    // Update button states
+    updateTimerButtons();
+    updateTimerDisplay();
+}
+
+function pauseRestTimer() {
+    if (restTimerState === 'running') {
+        restTimerState = 'paused';
+        
+        if (restTimerInterval) {
+            clearInterval(restTimerInterval);
+            restTimerInterval = null;
+        }
+        
+        updateTimerButtons();
+        updateTimerDisplay();
+    }
+}
+
+function resetRestTimer() {
+    restTimerState = 'stopped';
+    restTimerElapsedTime = 0;
+    restTimerStartTime = null;
+    
+    if (restTimerInterval) {
+        clearInterval(restTimerInterval);
+        restTimerInterval = null;
+    }
+    
+    updateTimerButtons();
+    updateTimerDisplay();
+}
+
+function updateTimerButtons() {
+    if (startTimerBtn && pauseTimerBtn && resetTimerBtn) {
+        if (restTimerState === 'stopped') {
+            startTimerBtn.disabled = false;
+            pauseTimerBtn.disabled = true;
+            resetTimerBtn.disabled = false;
+            startTimerBtn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5,3 19,12 5,21"/>
+                </svg>
+                Start
+            `;
+        } else if (restTimerState === 'running') {
+            startTimerBtn.disabled = true;
+            pauseTimerBtn.disabled = false;
+            resetTimerBtn.disabled = false;
+        } else if (restTimerState === 'paused') {
+            startTimerBtn.disabled = false;
+            pauseTimerBtn.disabled = true;
+            resetTimerBtn.disabled = false;
+            startTimerBtn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5,3 19,12 5,21"/>
+                </svg>
+                Resume
+            `;
+        }
+    }
+}
+
+// Event listeners for timer buttons
+if (startTimerBtn) {
+    startTimerBtn.addEventListener('click', startRestTimer);
+}
+
+if (pauseTimerBtn) {
+    pauseTimerBtn.addEventListener('click', pauseRestTimer);
+}
+
+if (resetTimerBtn) {
+    resetTimerBtn.addEventListener('click', resetRestTimer);
+}
+
+// Initialize timer display and buttons
+updateTimerDisplay();
+updateTimerButtons();
