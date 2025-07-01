@@ -2068,15 +2068,16 @@ def create_workout_template():
         description = data.get('description', '').strip()
         notes = data.get('notes', '').strip()
         is_public = data.get('is_public', False)
-        
+        exercises = data.get('exercises', [])
+
         if not name:
             return jsonify({'error': 'Template name is required'}), 400
-        
+
         # Check if template name already exists for this user
         existing = WorkoutTemplate.query.filter_by(user_id=current_user.id, name=name).first()
         if existing:
             return jsonify({'error': 'A template with this name already exists'}), 400
-        
+
         template = WorkoutTemplate(
             user_id=current_user.id,
             name=name,
@@ -2084,10 +2085,33 @@ def create_workout_template():
             notes=notes,
             is_public=is_public
         )
-        
+
         db.session.add(template)
         db.session.commit()
-        
+
+        # --- NEW: Save exercises ---
+        from models import Exercise, WorkoutTemplateExercise
+        for ex in exercises:
+            exercise_id = ex.get('exercise_id')
+            order = ex.get('order', 0)
+            # Fetch exercise name from Exercise model if possible
+            exercise_name = None
+            if exercise_id:
+                exercise_obj = Exercise.query.get(exercise_id)
+                exercise_name = exercise_obj.name if exercise_obj else 'Exercise'
+            else:
+                exercise_name = ex.get('exercise_name', 'Exercise')
+
+            template_exercise = WorkoutTemplateExercise(
+                template_id=template.id,
+                exercise_name=exercise_name,
+                exercise_id=exercise_id,
+                order=order
+            )
+            db.session.add(template_exercise)
+        db.session.commit()
+        # --- END NEW ---
+
         return jsonify({
             'message': 'Workout template created successfully',
             'template': {
@@ -2100,7 +2124,7 @@ def create_workout_template():
                 'updated_at': template.updated_at.isoformat()
             }
         }), 201
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -2463,4 +2487,213 @@ def create_workout_session():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-# ... existing code ...
+# ============================================================================
+# ADDITIONAL WORKOUT API ENDPOINTS
+# ============================================================================
+
+@fitness_bp.route('/api/todays_workout')
+@login_required
+def get_todays_workout():
+    """Get today's workout entries for the current user"""
+    try:
+        today = datetime.now().date()
+        workouts = Workout.query.filter_by(
+            user_id=current_user.id, 
+            date=today
+        ).order_by(Workout.id.desc()).all()
+        
+        workout_data = []
+        for workout in workouts:
+            workout_data.append({
+                'id': workout.id,
+                'category_name': workout.category_name,
+                'exercise_name': workout.exercise_name,
+                'set_number': workout.set_number,
+                'total_weight': workout.total_weight,
+                'reps': workout.reps,
+                'date': workout.date.isoformat()
+            })
+        
+        return jsonify(workout_data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@fitness_bp.route('/api/workout_history')
+@login_required
+def get_workout_history():
+    """Get workout history for the current user"""
+    try:
+        workouts = Workout.query.filter_by(user_id=current_user.id).order_by(Workout.date.desc()).limit(100).all()
+        
+        workout_data = []
+        for workout in workouts:
+            workout_data.append({
+                'id': workout.id,
+                'date': workout.date.isoformat(),
+                'category_name': workout.category_name,
+                'exercise_name': workout.exercise_name,
+                'weight': workout.total_weight,
+                'reps': workout.reps,
+                'sets': workout.set_number
+            })
+        
+        return jsonify(workout_data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@fitness_bp.route('/api/todays_sets')
+@login_required
+def get_todays_sets():
+    """Get today's sets for a specific exercise"""
+    try:
+        exercise = request.args.get('exercise')
+        if not exercise:
+            return jsonify({'error': 'Exercise parameter is required'}), 400
+        
+        today = datetime.now().date()
+        workouts = Workout.query.filter_by(
+            user_id=current_user.id,
+            exercise=exercise,
+            date=today
+        ).order_by(Workout.sets).all()
+        
+        sets_data = []
+        for workout in workouts:
+            sets_data.append({
+                'id': workout.id,
+                'set_number': workout.sets,
+                'weight': workout.weight,
+                'reps': workout.reps,
+                'date': workout.date.isoformat()
+            })
+        
+        return jsonify(sets_data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@fitness_bp.route('/api/exercise_history')
+@login_required
+def get_exercise_history():
+    """Get exercise history for a specific exercise"""
+    try:
+        exercise = request.args.get('exercise')
+        if not exercise:
+            return jsonify({'error': 'Exercise parameter is required'}), 400
+        
+        workouts = Workout.query.filter_by(
+            user_id=current_user.id,
+            exercise=exercise
+        ).order_by(Workout.date.desc(), Workout.sets).limit(50).all()
+        
+        history_data = []
+        for workout in workouts:
+            history_data.append({
+                'id': workout.id,
+                'date': workout.date.isoformat(),
+                'set_number': workout.sets,
+                'weight': workout.weight,
+                'reps': workout.reps
+            })
+        
+        return jsonify(history_data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@fitness_bp.route('/api/log_set', methods=['POST'])
+@login_required
+def log_set():
+    """Log a new set for an exercise"""
+    try:
+        data = request.get_json()
+        category_id = data.get('category_id')
+        exercise = data.get('exercise')
+        weight = data.get('weight')
+        reps = data.get('reps')
+        is_barbell = data.get('is_barbell', False)  # New field to indicate if it's a barbell exercise
+        
+        if not all([category_id, exercise, weight, reps]):
+            return jsonify({'error': 'All fields are required'}), 400
+        
+        # Get the next set number for today
+        today = datetime.now().date()
+        last_set = Workout.query.filter_by(
+            user_id=current_user.id,
+            exercise=exercise,
+            date=today
+        ).order_by(Workout.sets.desc()).first()
+        
+        set_number = (last_set.sets + 1) if last_set else 1
+        
+        # Calculate total weight for barbell exercises
+        total_weight = weight
+        if is_barbell:
+            total_weight = weight + 45  # Standard barbell weight
+        
+        # Create the workout entry
+        workout = Workout(
+            user_id=current_user.id,
+            category=category_id,
+            exercise=exercise,
+            sets=set_number,
+            weight=weight,  # Store the user's weight (plates only)
+            reps=reps,
+            date=today
+        )
+        
+        db.session.add(workout)
+        db.session.commit()
+        
+        # Check current PRs before adding the workout
+        current_weight_pr = PersonalRecord.query.filter_by(
+            user_id=current_user.id, 
+            exercise=exercise, 
+            pr_type='weight'
+        ).first()
+        current_reps_pr = PersonalRecord.query.filter_by(
+            user_id=current_user.id, 
+            exercise=exercise, 
+            pr_type='reps'
+        ).first()
+        
+        # Update PRs (use total weight for barbell exercises)
+        pr_weight = total_weight if is_barbell else weight
+        update_prs_for_workout(current_user.id, exercise, pr_weight, reps, 1, workout.id, today)
+        
+        # Check which PRs were newly achieved
+        new_prs = []
+        if (not current_weight_pr or pr_weight > current_weight_pr.value):
+            new_prs.append('weight')
+        if (not current_reps_pr or reps > current_reps_pr.value):
+            new_prs.append('reps')
+        
+        return jsonify({
+            'id': workout.id,
+            'set_number': workout.sets,
+            'weight': workout.weight,
+            'total_weight': total_weight,
+            'reps': workout.reps,
+            'date': workout.date.isoformat(),
+            'prs_achieved': new_prs
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@fitness_bp.route('/api/sets/<int:set_id>', methods=['DELETE'])
+@login_required
+def delete_set(set_id):
+    """Delete a specific set"""
+    try:
+        workout = Workout.query.filter_by(id=set_id, user_id=current_user.id).first()
+        if not workout:
+            return jsonify({'error': 'Set not found'}), 404
+        
+        db.session.delete(workout)
+        db.session.commit()
+        
+        return jsonify({'message': 'Set deleted successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500

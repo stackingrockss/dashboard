@@ -6,7 +6,208 @@
     <title>Log Workout</title>
     <link rel="stylesheet" href="/static/styles.css">
     <link rel="stylesheet" href="/static/fitness.css">
-    <link rel="stylesheet" href="/static/workout_entry.css">
+    <style>
+        .workout-modal-card {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            padding: 32px 24px;
+            max-width: 420px;
+            margin: 40px auto;
+        }
+        .workout-modal-card h2 {
+            font-size: 1.4em;
+            margin-bottom: 18px;
+            color: #222;
+        }
+        .workout-modal-card .step-label {
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 8px;
+        }
+        .workout-modal-card .btn {
+            margin: 8px 8px 0 0;
+        }
+        .workout-modal-card .category-btn.selected,
+        .workout-modal-card .exercise-btn.selected {
+            background: #007bff;
+            color: #fff;
+            border-color: #007bff;
+        }
+        
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: background-color 0.3s;
+        }
+        
+        .close-btn:hover {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        
+        .progress-steps {
+            display: flex;
+            margin-bottom: 20px;
+            gap: 10px;
+        }
+        
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 20px;
+            background: #f8f9fa;
+            color: #6c757d;
+            font-size: 14px;
+        }
+        
+        .step.active {
+            background: #007bff;
+            color: white;
+        }
+        
+        .step-number {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: currentColor;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .step.active .step-number {
+            background: white;
+            color: #007bff;
+        }
+        
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .button-grid button {
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            background: white;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+            text-align: center;
+        }
+        
+        .button-grid button:hover {
+            border-color: #007bff;
+            background: #f8f9ff;
+        }
+        
+        .button-grid button.selected {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        
+        .custom-exercise-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .custom-exercise-form {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .custom-exercise-form .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .custom-exercise-form label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .custom-exercise-form input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: space-between;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+    </style>
 </head>
 <body>
     
@@ -217,81 +418,72 @@
                 </div>
             </section>
         </main>
+    </div>
 
-        <!-- Modern Modal for New Exercise Selection -->
-        <div id="workout-modal" class="modern-modal">
-            <div class="modal-overlay"></div>
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2 class="modal-title">Start New Workout</h2>
-                    <button class="modal-close" id="close-workout-modal">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M18 6L6 18M6 6l12 12"/>
+    <!-- Workout Modal for New Exercise Selection -->
+    <div id="workout-modal" class="modal" style="display: none;">
+        <div class="workout-modal-card">
+            <div class="modal-header">
+                <h2>Select Exercise</h2>
+                <button id="close-workout-modal" class="close-btn" aria-label="Close modal">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Progress Steps -->
+            <div class="progress-steps">
+                <div id="step1" class="step active">
+                    <span class="step-number">1</span>
+                    <span class="step-label">Category</span>
+                </div>
+                <div id="step2" class="step">
+                    <span class="step-number">2</span>
+                    <span class="step-label">Exercise</span>
+                </div>
+            </div>
+            
+            <!-- Step 1: Category Selection -->
+            <div id="modal-step-category">
+                <div class="step-label">Choose a category:</div>
+                <div id="category-list" class="button-grid"></div>
+            </div>
+            
+            <!-- Step 2: Exercise Selection -->
+            <div id="modal-step-exercise" style="display: none;">
+                <div class="step-label">Choose an exercise:</div>
+                <div id="exercise-list" class="button-grid"></div>
+                
+                <!-- Custom Exercise Form -->
+                <div class="custom-exercise-section">
+                    <button id="show-custom-exercise-form" class="btn btn-secondary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 5v14M5 12h14"/>
                         </svg>
+                        Add Custom Exercise
                     </button>
-                </div>
-                
-                <div class="modal-progress">
-                    <div class="progress-step active" id="step-1">
-                        <div class="step-number">1</div>
-                        <div class="step-label">Category</div>
-                    </div>
-                    <div class="progress-line"></div>
-                    <div class="progress-step" id="step-2">
-                        <div class="step-number">2</div>
-                        <div class="step-label">Exercise</div>
-                    </div>
-                </div>
-                
-                <div class="modal-body">
-                    <div id="modal-step-category" class="modal-step active">
-                        <h3 class="step-title">Select a Category</h3>
-                        <div id="category-list" class="option-grid"></div>
-                    </div>
                     
-                    <div id="modal-step-exercise" class="modal-step">
-                        <h3 class="step-title">Select an Exercise</h3>
-                        <div id="exercise-list" class="option-grid"></div>
-                        <button type="button" id="show-custom-exercise-form" class="btn btn-secondary" style="margin-top: 16px;">+ Create New Exercise</button>
-                        <form id="custom-exercise-form" class="modern-form" style="display:none; margin-top: 16px;">
-                            <h4 style="margin-bottom: 8px;">Create Custom Exercise</h4>
-                            <div class="form-group">
-                                <label for="custom-exercise-name">Exercise Name*</label>
-                                <input type="text" id="custom-exercise-name" name="name" required maxlength="100" class="form-input" placeholder="Enter exercise name">
-                            </div>
-                            <div class="modal-actions">
-                                <button type="submit" class="btn btn-primary">Create Exercise</button>
-                            </div>
-                        </form>
-                        <div class="modal-actions">
-                            <button type="button" id="back-to-category" class="btn-secondary">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M19 12H5M12 19l-7-7 7-7"/>
-                                </svg>
-                                Back
-                            </button>
-                            <button type="button" id="cancel-workout-btn" class="btn-secondary">Cancel</button>
+                    <form id="custom-exercise-form" class="custom-exercise-form" style="display: none;">
+                        <div class="form-group">
+                            <label for="custom-exercise-name">Exercise Name:</label>
+                            <input type="text" id="custom-exercise-name" name="name" required>
                         </div>
-                    </div>
-                    <!-- New Review Step -->
-                    <div id="modal-step-review" class="modal-step" style="display:none;">
-                      <h3 class="step-title">Review & Build Workout Plan</h3>
-                      <div id="selected-exercises-list" class="option-grid" style="margin-bottom: 16px;"></div>
-                      <button type="button" id="add-another-exercise-btn" class="btn btn-secondary" style="margin-bottom: 16px;">+ Add Another Exercise</button>
-                      <div class="form-group">
-                        <label for="workout-name">Workout Name (optional):</label>
-                        <input type="text" id="workout-name" class="form-input" maxlength="100" placeholder="e.g. Chest Blast, Push Day">
-                      </div>
-                      <div class="modal-actions" style="margin-top: 16px;">
-                        <button type="button" id="back-to-exercise-btn" class="btn btn-secondary">Back</button>
-                        <button type="button" id="save-workout-btn" class="btn btn-primary">Save Workout</button>
-                      </div>
-                    </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Create Exercise</button>
+                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('custom-exercise-form').style.display='none'">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="modal-actions">
+                    <button id="back-to-category" class="btn btn-secondary">Back to Categories</button>
+                    <button id="cancel-workout-btn" class="btn btn-secondary">Cancel</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <script type="module" src="/static/workout_entry.js"></script>
+    <script src="/static/workouts.js"></script>
 </body>
 </html>
