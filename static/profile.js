@@ -1,3 +1,5 @@
+import { showSnack } from './utils.js';
+
 // Profile and Settings Management
 class ProfileManager {
     constructor() {
@@ -287,4 +289,7 @@ applyTheme(savedTheme);
 // Listen for theme changes
 document.addEventListener('themeChange', (e) => {
     applyTheme(e.detail.theme);
-}); 
+});
+
+// Export functions if using modules
+// export { loadStats, ... }; 

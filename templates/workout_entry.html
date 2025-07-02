@@ -372,30 +372,60 @@
                                     </svg>
                                     Rest Timer
                                 </h3>
+                                <div class="timer-status" id="timer-status">Ready</div>
                             </div>
+                            
                             <div class="timer-display-container">
                                 <div class="timer-display" id="rest-timer-display">00:00</div>
-                                <div class="timer-controls">
-                                    <button id="start-timer" class="timer-btn start">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <polygon points="5,3 19,12 5,21"/>
-                                        </svg>
-                                        Start
-                                    </button>
-                                    <button id="pause-timer" class="timer-btn pause" disabled>
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <rect x="6" y="4" width="4" height="16"/>
-                                            <rect x="14" y="4" width="4" height="16"/>
-                                        </svg>
-                                        Pause
-                                    </button>
-                                    <button id="reset-timer" class="timer-btn reset">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <polyline points="1,4 1,10 7,10"/>
-                                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-                                        </svg>
-                                        Reset
-                                    </button>
+                                <div class="timer-progress">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="timer-progress-fill"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Preset Rest Times -->
+                            <div class="preset-times">
+                                <div class="preset-label">Quick Start:</div>
+                                <div class="preset-buttons">
+                                    <button class="preset-btn" data-time="60">1 min</button>
+                                    <button class="preset-btn" data-time="90">1:30</button>
+                                    <button class="preset-btn" data-time="120">2 min</button>
+                                    <button class="preset-btn" data-time="180">3 min</button>
+                                    <button class="preset-btn" data-time="300">5 min</button>
+                                </div>
+                            </div>
+                            
+                            <div class="timer-controls">
+                                <button id="start-timer" class="timer-btn start">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polygon points="5,3 19,12 5,21"/>
+                                    </svg>
+                                    Start
+                                </button>
+                                <button id="pause-timer" class="timer-btn pause" disabled>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="6" y="4" width="4" height="16"/>
+                                        <rect x="14" y="4" width="4" height="16"/>
+                                    </svg>
+                                    Pause
+                                </button>
+                                <button id="reset-timer" class="timer-btn reset">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="1,4 1,10 7,10"/>
+                                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                                    </svg>
+                                    Reset
+                                </button>
+                            </div>
+                            
+                            <!-- Custom Time Input -->
+                            <div class="custom-time-section">
+                                <div class="custom-time-input">
+                                    <input type="number" id="custom-minutes" placeholder="0" min="0" max="59">
+                                    <span class="time-separator">:</span>
+                                    <input type="number" id="custom-seconds" placeholder="00" min="0" max="59">
+                                    <button id="set-custom-time" class="set-time-btn">Set</button>
                                 </div>
                             </div>
                         </div>

@@ -398,28 +398,33 @@ async function handleLogSet(e) {
 // Add a set to the table
 function addSetToTable(setData) {
     if (!setsTableBody) return;
-    
     const row = document.createElement('tr');
     const setNumber = setsTableBody.children.length + 1;
-    
+
+    // Always show the user-entered weight
     let totalWeightCell = '';
     if (isBarbellExercise) {
-        // Use total_weight from the response if available, otherwise calculate it
-        const totalWeight = setData.total_weight || (setData.weight + STANDARD_BARBELL_WEIGHT);
+        // Only show total weight for barbell exercises
+        const totalWeight = setData.weight + STANDARD_BARBELL_WEIGHT;
         totalWeightCell = `<td>${totalWeight}</td>`;
     }
-    
+
     row.innerHTML = `
         <td>${setNumber}</td>
         <td>${setData.weight}</td>
-        ${totalWeightCell}
+        ${isBarbellExercise ? totalWeightCell : ''}
         <td>${setData.reps}</td>
         <td>
             <button onclick="deleteSet(${setData.id})" class="btn btn-sm btn-danger">Delete</button>
         </td>
     `;
-    
     setsTableBody.appendChild(row);
+
+    // Update the table header visibility for Total Weight
+    const totalWeightHeader = document.getElementById('total-weight-header');
+    if (totalWeightHeader) {
+        totalWeightHeader.style.display = isBarbellExercise ? 'table-cell' : 'none';
+    }
 }
 
 // Update the sets count display
@@ -434,21 +439,15 @@ function updateSetsCount() {
 // Load today's sets
 async function loadTodaysSets() {
     if (!setsTableBody) return;
-    
     try {
         const response = await fetch(`/fitness/api/todays_sets?exercise=${encodeURIComponent(exerciseName)}`);
         if (response.ok) {
             const sets = await response.json();
+            console.log('API /fitness/api/todays_sets response:', sets); // Debug log
             setsTableBody.innerHTML = '';
-            
             sets.forEach(set => {
-                // Add total_weight calculation for barbell exercises
-                if (isBarbellExercise) {
-                    set.total_weight = set.weight + STANDARD_BARBELL_WEIGHT;
-                }
                 addSetToTable(set);
             });
-            
             updateSetsCount();
         }
     } catch (error) {
@@ -1057,7 +1056,10 @@ function showStartWorkoutStep(step) {
 
 async function loadWorkoutTemplates() {
     const templateList = document.getElementById('workout-template-list');
-    if (!templateList) return;
+    if (!templateList) {
+        console.error('Template list element not found');
+        return;
+    }
     
     try {
         const response = await fetch('/fitness/api/workout_templates');
@@ -1070,19 +1072,22 @@ async function loadWorkoutTemplates() {
         if (Array.isArray(templates) && templates.length > 0) {
             templateList.innerHTML = '';
             templates.forEach(template => {
+                console.log('Processing template:', template);
                 const templateItem = document.createElement('div');
                 templateItem.className = 'workout-template-item';
                 templateItem.innerHTML = `
                     <div class="template-info">
                         <h4>${template.name}</h4>
-                        <p>${template.exercises && Array.isArray(template.exercises) ? template.exercises.length : 0} exercises</p>
+                        <p>${template.exercise_count || 0} exercises</p>
                     </div>
                     <button onclick="selectWorkoutTemplate(${template.id})" class="btn btn-primary">Select</button>
                 `;
                 templateList.appendChild(templateItem);
             });
+            console.log(`Loaded ${templates.length} workout templates`);
         } else {
             templateList.innerHTML = '<p style="text-align: center; color: #666;">No saved workout templates found.</p>';
+            console.log('No workout templates found');
         }
     } catch (error) {
         console.error('Error loading workout templates:', error);
@@ -1196,32 +1201,48 @@ async function saveWorkoutTemplateInternal() {
         return;
     }
     
+    console.log('Saving workout template:', {
+        name: workoutName,
+        exercises: selectedExercises
+    });
+    
     try {
+        const requestBody = {
+            name: workoutName,
+            exercises: selectedExercises.map((ex, idx) => ({
+                exercise_name: ex.name,
+                exercise_id: ex.id,
+                category_name: ex.category_name,
+                order: idx + 1 // Ensure unique order for each exercise
+            }))
+        };
+        
+        console.log('Request body:', requestBody);
+        
         const response = await fetch('/fitness/api/workout_templates', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                name: workoutName,
-                exercises: selectedExercises.map((ex, idx) => ({
-                    exercise_name: ex.name,
-                    exercise_id: ex.id,
-                    category_name: ex.category_name,
-                    order: idx + 1 // Ensure unique order for each exercise
-                }))
-            })
+            body: JSON.stringify(requestBody)
         });
         
         if (response.ok) {
             const result = await response.json();
+            console.log('Template saved successfully:', result);
             showStartWorkoutStep(4);
             // Reset form
             document.getElementById('workout-template-name').value = '';
             selectedCategories = [];
             selectedExercises = [];
+            
+            // Refresh the template list
+            setTimeout(() => {
+                loadWorkoutTemplates();
+            }, 1000);
         } else {
             const error = await response.json();
+            console.error('Error response:', error);
             alert('Error saving workout: ' + (error.error || 'Unknown error'));
         }
     } catch (error) {
@@ -1303,6 +1324,215 @@ async function loadTodaysWorkout() {
     }
 }
 
+// --- Rest Timer Logic ---
+let restTimerInterval = null;
+let restTimerSeconds = 0;
+let restTimerRunning = false;
+let restTimerTotalSeconds = 0; // Store the total time for progress calculation
+
+function updateRestTimerDisplay() {
+    const display = document.getElementById('rest-timer-display');
+    const progressFill = document.getElementById('timer-progress-fill');
+    const status = document.getElementById('timer-status');
+    
+    if (display) {
+        const mins = String(Math.floor(restTimerSeconds / 60)).padStart(2, '0');
+        const secs = String(restTimerSeconds % 60).padStart(2, '0');
+        display.textContent = `${mins}:${secs}`;
+        
+        // Update progress bar
+        if (progressFill && restTimerTotalSeconds > 0) {
+            const progress = ((restTimerTotalSeconds - restTimerSeconds) / restTimerTotalSeconds) * 100;
+            progressFill.style.width = `${progress}%`;
+        }
+        
+        // Update status
+        if (status) {
+            if (restTimerRunning) {
+                status.textContent = 'Running';
+                status.className = 'timer-status running';
+                display.className = 'timer-display running';
+            } else if (restTimerSeconds > 0 && restTimerSeconds < restTimerTotalSeconds) {
+                status.textContent = 'Paused';
+                status.className = 'timer-status paused';
+                display.className = 'timer-display paused';
+            } else if (restTimerSeconds === 0 && restTimerTotalSeconds > 0) {
+                status.textContent = 'Completed';
+                status.className = 'timer-status completed';
+                display.className = 'timer-display completed';
+                
+                // Play completion sound or show notification
+                showMessage('⏰ Rest timer completed!', 'success');
+            } else {
+                status.textContent = 'Ready';
+                status.className = 'timer-status';
+                display.className = 'timer-display';
+            }
+        }
+    }
+}
+
+function startRestTimer() {
+    if (restTimerRunning || restTimerTotalSeconds === 0) return;
+    
+    restTimerRunning = true;
+    const startBtn = document.getElementById('start-timer');
+    const pauseBtn = document.getElementById('pause-timer');
+    
+    if (startBtn) startBtn.disabled = true;
+    if (pauseBtn) pauseBtn.disabled = false;
+    
+    restTimerInterval = setInterval(() => {
+        if (restTimerSeconds > 0) {
+            restTimerSeconds--;
+            updateRestTimerDisplay();
+        } else {
+            // Timer completed
+            stopRestTimer();
+            showMessage('⏰ Rest period completed! Ready for your next set!', 'success');
+        }
+    }, 1000);
+    
+    updateRestTimerDisplay();
+}
+
+function pauseRestTimer() {
+    if (!restTimerRunning) return;
+    
+    restTimerRunning = false;
+    const startBtn = document.getElementById('start-timer');
+    const pauseBtn = document.getElementById('pause-timer');
+    
+    if (startBtn) startBtn.disabled = false;
+    if (pauseBtn) pauseBtn.disabled = true;
+    
+    clearInterval(restTimerInterval);
+    updateRestTimerDisplay();
+}
+
+function resetRestTimer() {
+    restTimerRunning = false;
+    restTimerSeconds = 0;
+    restTimerTotalSeconds = 0;
+    
+    const startBtn = document.getElementById('start-timer');
+    const pauseBtn = document.getElementById('pause-timer');
+    const progressFill = document.getElementById('timer-progress-fill');
+    
+    if (startBtn) startBtn.disabled = true;
+    if (pauseBtn) pauseBtn.disabled = true;
+    if (progressFill) progressFill.style.width = '0%';
+    
+    clearInterval(restTimerInterval);
+    updateRestTimerDisplay();
+    
+    // Clear active preset button
+    document.querySelectorAll('.preset-btn.active').forEach(btn => {
+        btn.classList.remove('active');
+    });
+}
+
+function setRestTimer(seconds) {
+    restTimerTotalSeconds = seconds;
+    restTimerSeconds = seconds;
+    restTimerRunning = false;
+    
+    const startBtn = document.getElementById('start-timer');
+    if (startBtn) startBtn.disabled = false;
+    
+    clearInterval(restTimerInterval);
+    updateRestTimerDisplay();
+    
+    // Save to localStorage for convenience
+    try {
+        localStorage.setItem('lastRestTimerDuration', seconds.toString());
+    } catch (error) {
+        console.error('Error saving timer duration:', error);
+    }
+}
+
+// Load last used timer duration
+function loadLastTimerDuration() {
+    try {
+        const savedDuration = localStorage.getItem('lastRestTimerDuration');
+        if (savedDuration) {
+            const seconds = parseInt(savedDuration);
+            if (seconds > 0) {
+                setRestTimer(seconds);
+                // Removed the showMessage call to avoid popup notification
+                console.log(`Loaded last timer: ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading timer duration:', error);
+    }
+}
+
+// Setup preset timer buttons
+function setupPresetTimers() {
+    const presetButtons = document.querySelectorAll('.preset-btn');
+    presetButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const seconds = parseInt(btn.dataset.time);
+            
+            // Remove active class from all buttons
+            presetButtons.forEach(b => b.classList.remove('active'));
+            
+            // Add active class to clicked button
+            btn.classList.add('active');
+            
+            setRestTimer(seconds);
+            
+            // Auto-start timer for quick convenience
+            setTimeout(() => {
+                startRestTimer();
+            }, 500);
+            
+            showMessage(`Timer started: ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`, 'success');
+        });
+    });
+}
+
+// Setup custom time input
+function setupCustomTimeInput() {
+    const customMinutes = document.getElementById('custom-minutes');
+    const customSeconds = document.getElementById('custom-seconds');
+    const setTimeBtn = document.getElementById('set-custom-time');
+    
+    if (setTimeBtn) {
+        setTimeBtn.addEventListener('click', () => {
+            const minutes = parseInt(customMinutes.value) || 0;
+            const seconds = parseInt(customSeconds.value) || 0;
+            const totalSeconds = (minutes * 60) + seconds;
+            
+            if (totalSeconds > 0) {
+                setRestTimer(totalSeconds);
+                
+                // Clear active preset buttons
+                document.querySelectorAll('.preset-btn.active').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                
+                showMessage(`Custom timer set to ${minutes}:${String(seconds).padStart(2, '0')}`, 'info');
+            } else {
+                showMessage('Please enter a valid time', 'error');
+            }
+        });
+    }
+    
+    // Allow Enter key to set time
+    if (customMinutes && customSeconds) {
+        const handleEnter = (e) => {
+            if (e.key === 'Enter') {
+                setTimeBtn.click();
+            }
+        };
+        
+        customMinutes.addEventListener('keypress', handleEnter);
+        customSeconds.addEventListener('keypress', handleEnter);
+    }
+}
+
 // Initialize everything when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Workouts.js loaded');
@@ -1374,6 +1604,25 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         console.log('Missing categoryId or exerciseName, skipping initialization');
     }
+
+    // Rest timer setup
+    updateRestTimerDisplay();
+    
+    // Setup timer controls
+    const startBtn = document.getElementById('start-timer');
+    const pauseBtn = document.getElementById('pause-timer');
+    const resetBtn = document.getElementById('reset-timer');
+    
+    if (startBtn) startBtn.addEventListener('click', startRestTimer);
+    if (pauseBtn) pauseBtn.addEventListener('click', pauseRestTimer);
+    if (resetBtn) resetBtn.addEventListener('click', resetRestTimer);
+    
+    // Setup preset timers and custom time input
+    setupPresetTimers();
+    setupCustomTimeInput();
+    
+    // Load last used timer duration
+    loadLastTimerDuration();
 });
 
 // Test function for debugging (can be called from browser console)
@@ -1488,4 +1737,67 @@ window.testAllFeatures = function() {
     loadLastInputs();
     
     console.log('=== TEST COMPLETE ===');
+};
+
+// Test function for debugging workout templates
+window.debugWorkoutTemplates = function() {
+    console.log('=== WORKOUT TEMPLATE DEBUG ===');
+    
+    // Test 1: Check if we can load templates
+    console.log('1. Testing template loading...');
+    loadWorkoutTemplates();
+    
+    // Test 2: Check selected exercises
+    console.log('2. Selected exercises:', selectedExercises);
+    console.log('3. Selected categories:', selectedCategories);
+    
+    // Test 3: Check DOM elements
+    console.log('4. DOM elements:', {
+        templateList: !!document.getElementById('workout-template-list'),
+        startWorkoutModal: !!document.getElementById('start-workout-modal'),
+        multiCategoryList: !!document.getElementById('multi-category-list'),
+        multiExerciseList: !!document.getElementById('multi-exercise-list')
+    });
+    
+    // Test 4: Test API directly
+    fetch('/fitness/api/workout_templates')
+        .then(response => response.json())
+        .then(templates => {
+            console.log('5. API response:', templates);
+            if (templates.length > 0) {
+                console.log('6. First template details:', templates[0]);
+            }
+        })
+        .catch(error => {
+            console.error('7. API error:', error);
+        });
+    
+    console.log('=== DEBUG COMPLETE ===');
+};
+
+// Test function for creating a sample template
+window.createSampleTemplate = function() {
+    console.log('Creating sample template...');
+    
+    // Set up sample data
+    selectedCategories = [{ id: 1, name: 'Chest' }];
+    selectedExercises = [
+        { id: 1, name: 'Bench Press', category_name: 'Chest' },
+        { id: 2, name: 'Push-ups', category_name: 'Chest' }
+    ];
+    
+    // Set the workout name
+    const nameInput = document.getElementById('workout-template-name');
+    if (nameInput) {
+        nameInput.value = 'Sample Chest Workout';
+    }
+    
+    console.log('Sample data set up:', {
+        categories: selectedCategories,
+        exercises: selectedExercises,
+        name: nameInput ? nameInput.value : 'Sample Chest Workout'
+    });
+    
+    // Save the template
+    saveWorkoutTemplateInternal();
 }; 

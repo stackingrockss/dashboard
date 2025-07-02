@@ -9,7 +9,7 @@ food_bp = Blueprint('food_bp', __name__)
 
 @food_bp.route('/food')
 def food_page():
-    return render_template('food.html')
+    return render_template('food_enhanced.html')
 
 @food_bp.route('/search')
 def search_food():
