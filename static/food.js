@@ -4,7 +4,7 @@ import { showSnack } from './utils.js';
 // (Moved from fitness.js)
 
 // Food Form Submission
-const foodForm = document.getElementById('food-entry-form');
+const foodForm = document.getElementById('manual-food-form');
 const foodTable = document.getElementById('food-entries-table')?.querySelector('tbody');
 const today = new Date().toISOString().split('T')[0];
 const foodDateInput = document.getElementById('food-date');
@@ -47,9 +47,17 @@ async function loadFoodEntries() {
 if (foodForm) {
     foodForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const dateInput = document.getElementById('date');
+        if (dateInput) dateInput.value = today;
+        // Ensure protein, carbs, fat are always numbers
+        ['manual-protein', 'manual-carbs', 'manual-fat'].forEach(id => {
+            const input = document.getElementById(id);
+            if (input && !input.value) input.value = "0";
+        });
         const formData = new FormData(foodForm);
+        console.log('Submitting manual calories:', [...formData.entries()]);
         try {
-            const response = await fetch('/fitness/add_food_entry', {
+            const response = await fetch('/fitness/add_manual_calories', {
                 method: 'POST',
                 body: formData
             });
@@ -57,10 +65,10 @@ if (foodForm) {
             if (response.ok) {
                 showSnack(result.message, 'success');
                 foodForm.reset();
-                if (foodDateInput) foodDateInput.value = today;
+                if (dateInput) dateInput.value = today;
                 loadFoodEntries();
                 // Load nutrition summary for the date
-                const date = formData.get('food_date');
+                const date = formData.get('date');
                 if (date) {
                     loadDailyNutrition(date);
                 }
@@ -75,7 +83,57 @@ if (foodForm) {
 
 // Nutrition summary (example, adjust as needed)
 function loadDailyNutrition(date) {
-    // Implement nutrition summary fetch and render logic here
+    const summaryDiv = document.getElementById('nutrition-summary-display');
+    if (!summaryDiv) return;
+    summaryDiv.innerHTML = '<div>Loading...</div>';
+    fetch(`/fitness/api/daily_nutrition/${date}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                summaryDiv.innerHTML = `<div class="nutrition-summary-card no-data"><span class="source-badge no-data">No Data</span><div style='margin-top:8px;'>${data.error}</div></div>`;
+                return;
+            }
+            const sourceClass = data.source === 'logged_food' ? 'logged-food' : (data.source === 'manual_input' ? 'manual-input' : 'no-data');
+            const sourceLabel = data.source === 'logged_food' ? 'Logged Food' : (data.source === 'manual_input' ? 'Manual Input' : 'No Data');
+            summaryDiv.innerHTML = `
+                <div class="nutrition-summary-card ${sourceClass}">
+                    <span class="source-badge ${sourceClass}">${sourceLabel}</span>
+                    <div class="nutrition-totals">
+                        <div class="nutrition-item">
+                            <span class="label">Calories</span>
+                            <span class="value">${data.calories || 0}</span>
+                        </div>
+                        <div class="nutrition-item">
+                            <span class="label">Protein</span>
+                            <span class="value">${data.protein || 0}g</span>
+                        </div>
+                        <div class="nutrition-item">
+                            <span class="label">Carbs</span>
+                            <span class="value">${data.carbs || 0}g</span>
+                        </div>
+                        <div class="nutrition-item">
+                            <span class="label">Fat</span>
+                            <span class="value">${data.fat || 0}g</span>
+                        </div>
+                    </div>
+                    <details class="nutrition-entries" ${data.entries && data.entries.length ? '' : 'open'}>
+                        <summary>Entries (${data.entries.length})</summary>
+                        <div class="entries-list">
+                            ${data.entries.length ? data.entries.map(e => `
+                                <div class="entry-item ${e.is_manual ? 'manual-entry' : 'logged-entry'}">
+                                    <span>${e.food_name}</span>
+                                    <span>${e.calories || 0} kcal</span>
+                                    <span class="entry-type">${e.is_manual ? 'Manual' : 'Logged'}</span>
+                                </div>
+                            `).join('') : '<div style="color:#888;">No entries for this day.</div>'}
+                        </div>
+                    </details>
+                </div>
+            `;
+        })
+        .catch(() => {
+            summaryDiv.innerHTML = `<div class="nutrition-summary-card no-data"><span class="source-badge no-data">No Data</span><div style='margin-top:8px;'>Failed to load nutrition summary.</div></div>`;
+        });
 }
 
 // Edit food entry logic (example, adjust as needed)
@@ -88,4 +146,8 @@ function deleteFoodEntry(id) {
 }
 
 // Export functions if using modules
-export { loadFoodEntries, loadDailyNutrition, editFoodEntry, deleteFoodEntry }; 
+export { loadFoodEntries, loadDailyNutrition, editFoodEntry, deleteFoodEntry };
+
+if (document.getElementById('nutrition-summary-display')) {
+    loadDailyNutrition(today);
+} 

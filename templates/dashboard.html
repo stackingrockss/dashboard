@@ -15,6 +15,8 @@
     <script type="module" src="/static/trading.js" defer></script>
     <script type="module" src="/static/utils.js" defer></script>
     <script type="module" src="/static/workouts.js" defer></script>
+    <script type="module" src="/static/activities.js"></script>
+    <script type="module" src="/static/food.js"></script>
     
     <style>
         /* Food Sub-tabs */
@@ -533,6 +535,339 @@
             outline: none;
             border-color: #007bff;
         }
+
+        .activity-list-modern {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          margin-bottom: 24px;
+        }
+        .activity-card {
+          display: flex;
+          align-items: center;
+          background: #fff;
+          border-radius: 10px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+          padding: 18px 20px;
+          gap: 18px;
+          transition: box-shadow 0.2s;
+        }
+        .activity-card:hover {
+          box-shadow: 0 4px 16px rgba(0,123,255,0.10);
+        }
+        .activity-icon {
+          font-size: 2em;
+          margin-right: 16px;
+          color: #007bff;
+          flex-shrink: 0;
+        }
+        .activity-details {
+          flex: 1;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 18px;
+          align-items: center;
+        }
+        .activity-type {
+          font-weight: bold;
+          font-size: 1.1em;
+          color: #333;
+        }
+        .activity-meta {
+          display: flex;
+          gap: 16px;
+          font-size: 0.98em;
+          color: #555;
+        }
+        .activity-meta span {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        .activity-actions {
+          display: flex;
+          gap: 8px;
+        }
+        .activity-action-btn {
+          background: #f1f3f6;
+          border: none;
+          border-radius: 6px;
+          padding: 7px 14px;
+          font-size: 0.95em;
+          cursor: pointer;
+          color: #007bff;
+          transition: background 0.2s;
+        }
+        .activity-action-btn:hover {
+          background: #e3eefd;
+        }
+        @media (max-width: 600px) {
+          .activity-card {
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 14px 10px;
+          }
+          .activity-details {
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-start;
+          }
+        }
+        .activity-edit-btn, .activity-delete-btn {
+          background: #f1f3f6;
+          border: none;
+          border-radius: 50%;
+          width: 38px;
+          height: 38px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.2em;
+          transition: background 0.2s, box-shadow 0.2s;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+          margin-left: 2px;
+        }
+        .activity-edit-btn:hover {
+          background: #e3eefd;
+          color: #007bff;
+        }
+        .activity-delete-btn {
+          color: #dc3545 !important;
+        }
+        .activity-delete-btn:hover {
+          background: #ffeaea;
+          color: #fff;
+        }
+        .log-activity-btn-modern {
+          font-size: 1.13em;
+          padding: 12px 28px;
+          border-radius: 8px;
+          box-shadow: 0 2px 8px rgba(0,123,255,0.07);
+          background: linear-gradient(90deg, #007bff 0%, #4fc3f7 100%);
+          color: #fff;
+          font-weight: 600;
+          border: none;
+          transition: background 0.2s, box-shadow 0.2s;
+        }
+        .log-activity-btn-modern:hover {
+          background: linear-gradient(90deg, #0056b3 0%, #0288d1 100%);
+          box-shadow: 0 4px 16px rgba(0,123,255,0.13);
+          color: #fff;
+        }
+        .log-activity-modal-modern .close:hover,
+        #close-log-activity-modal:hover {
+          color: #007bff;
+        }
+        .log-activity-modal-modern form label {
+          font-weight: 500;
+          color: #333;
+        }
+        .log-activity-modal-modern form input,
+        .log-activity-modal-modern form select {
+          border-radius: 6px;
+          border: 1.5px solid #ddd;
+          padding: 10px 12px;
+          font-size: 1em;
+          margin-bottom: 12px;
+          width: 100%;
+          box-sizing: border-box;
+        }
+        .log-activity-modal-modern form .form-group {
+          margin-bottom: 14px;
+        }
+        .activity-flex-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 28px;
+          margin-bottom: 32px;
+        }
+        @media (max-width: 900px) {
+          .activity-flex-row {
+            grid-template-columns: 1fr;
+          }
+        }
+        .half-width-section {
+          background: #fff;
+          border-radius: 14px;
+          box-shadow: 0 2px 12px rgba(30,41,59,0.07);
+          padding: 24px 28px 20px 28px;
+          box-sizing: border-box;
+          max-width: 100%;
+          min-width: 0;
+        }
+        .activity-action-row-minimal {
+          display: flex;
+          gap: 12px;
+          align-items: center;
+          margin-bottom: 18px;
+        }
+        .activity-pill-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: #f6f8fa;
+          color: #222;
+          border: 1.5px solid #e0e4ea;
+          border-radius: 999px;
+          padding: 10px 22px;
+          font-size: 1.08em;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background 0.18s, border 0.18s, color 0.18s;
+          box-shadow: none;
+          outline: none;
+        }
+        .activity-pill-btn:hover, .activity-pill-btn:focus {
+          background: #e9f1ff;
+          border-color: #b6d4fe;
+        }
+        .activity-pill-primary {
+          background: #2563eb;
+          color: #fff;
+          border: none;
+          font-weight: 600;
+        }
+        .activity-pill-primary:hover, .activity-pill-primary:focus {
+          background: #1746a2;
+        }
+        .activity-pill-label {
+          flex: 1;
+          text-align: left;
+        }
+        .activity-pill-chevron {
+          font-size: 1.1em;
+          color: #888;
+        }
+        @media (max-width: 600px) {
+          .activity-action-row-minimal {
+            flex-direction: column;
+            gap: 10px;
+            align-items: stretch;
+          }
+        }
+
+        .activity-level-option {
+          background: #f6f8fa;
+          color: #222;
+          border: 1.5px solid #e0e4ea;
+          border-radius: 8px;
+          padding: 14px 18px;
+          font-size: 1.08em;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background 0.18s, border 0.18s, color 0.18s;
+          box-shadow: none;
+          outline: none;
+          text-align: left;
+          margin-bottom: 0;
+        }
+        .activity-level-option:hover, .activity-level-option:focus {
+          background: #e9f1ff;
+          border-color: #b6d4fe;
+          color: #1746a2;
+        }
+        .activity-title {
+          font-weight: 600;
+          font-size: 1.1em;
+          margin-bottom: 2px;
+        }
+        .activity-desc {
+          font-size: 0.97em;
+          color: #666;
+        }
+
+        .miles-summary-card {
+          background: #f8fafd;
+          border-radius: 16px;
+          box-shadow: 0 2px 12px rgba(30,41,59,0.07);
+          padding: 28px 32px 22px 32px;
+          margin-bottom: 18px;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          min-width: 0;
+        }
+        .miles-summary-header {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 10px;
+        }
+        .miles-summary-header h3 {
+          margin: 0;
+          font-size: 1.18em;
+          color: #2563eb;
+          font-weight: 700;
+        }
+        .miles-summary-timeframe {
+          margin-left: auto;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: #f1f5fa;
+          border-radius: 999px;
+          padding: 6px 14px;
+          font-size: 1em;
+          border: 1.5px solid #e0e4ea;
+        }
+        .miles-summary-timeframe label {
+          font-weight: 500;
+          color: #555;
+          margin-right: 4px;
+        }
+        .miles-summary-timeframe select {
+          border: none;
+          background: transparent;
+          font-size: 1em;
+          color: #2563eb;
+          font-weight: 600;
+          outline: none;
+          padding: 2px 0;
+        }
+        .miles-summary-stats {
+          display: flex;
+          gap: 18px;
+          margin-top: 12px;
+          margin-bottom: 8px;
+        }
+        .miles-summary-pill {
+          background: #fff;
+          border-radius: 12px;
+          box-shadow: 0 1px 4px rgba(30,41,59,0.06);
+          padding: 18px 22px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          min-width: 110px;
+          min-height: 80px;
+          justify-content: center;
+          border: 1.5px solid #e0e4ea;
+        }
+        .miles-summary-icon {
+          font-size: 1.6em;
+          margin-bottom: 4px;
+        }
+        .miles-summary-value {
+          font-size: 1.35em;
+          font-weight: 700;
+          color: #2563eb;
+          margin-bottom: 2px;
+        }
+        .miles-summary-label {
+          font-size: 1em;
+          color: #666;
+          font-weight: 500;
+        }
+        .miles-summary-dates {
+          font-size: 0.97em;
+          color: #888;
+          margin-top: 10px;
+        }
+        @media (max-width: 700px) {
+          .miles-summary-card { padding: 16px 8px 12px 8px; }
+          .miles-summary-stats { flex-direction: column; gap: 10px; }
+          .miles-summary-pill { min-width: 0; width: 100%; }
+        }
     </style>
 </head>
 <body>
@@ -827,6 +1162,7 @@
                         <h3>Daily Nutrition Input</h3>
                         <p>Enter your total daily calories and macros</p>
                         <form id="manual-food-form">
+                            <input type="hidden" id="date" name="date">
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="manual-calories">Total Calories:</label>
@@ -835,19 +1171,19 @@
                                 
                                 <div class="form-group">
                                     <label for="manual-protein">Total Protein (g):</label>
-                                    <input type="number" id="manual-protein" name="protein" min="0" step="0.1" placeholder="0" required>
+                                    <input type="number" id="manual-protein" name="protein" min="0" step="0.1" placeholder="0">
                                 </div>
                             </div>
                             
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="manual-carbs">Total Carbs (g):</label>
-                                    <input type="number" id="manual-carbs" name="carbs" min="0" step="0.1" placeholder="0" required>
+                                    <input type="number" id="manual-carbs" name="carbs" min="0" step="0.1" placeholder="0">
                                 </div>
                                 
                                 <div class="form-group">
                                     <label for="manual-fat">Total Fat (g):</label>
-                                    <input type="number" id="manual-fat" name="fat" min="0" step="0.1" placeholder="0" required>
+                                    <input type="number" id="manual-fat" name="fat" min="0" step="0.1" placeholder="0">
                                 </div>
                             </div>
                             
@@ -1148,53 +1484,166 @@
 
                 <!-- Activities Sub-tab Content -->
                 <div id="activity-sub-content-activities" class="activity-sub-content active" style="display: block;">
-                    <div class="form-group">
-                        <label for="daily-activity-level">Daily Activity Level</label>
-                        <select id="daily-activity-level" name="daily_activity_level">
-                            <option value="sedentary" selected>Sedentary (desk job or mostly sitting all day, little movement outside of logged exercise)</option>
-                            <option value="light">Light (on your feet a bit—teacher, retail, errands—but not physically strenuous)</option>
-                            <option value="moderate">Moderate (on your feet most of the day—waiter, nurse, warehouse worker—or a lot of walking)</option>
-                            <option value="active">Active (very physically demanding job—construction, mover—or lots of unlogged physical activity)</option>
-                            <option value="very_active">Very Active (athlete, military, or extremely physical job plus extra activity)</option>
-                        </select>
-                        <small class="form-text text-muted">
-                            <strong>Tip:</strong> Most users should select <b>Sedentary</b> or <b>Light</b> if all exercise is logged. Use higher levels only if your job or lifestyle is physically demanding in addition to your workouts.
-                        </small>
+                    <div class="activity-action-row-minimal">
+                      <button id="daily-activity-level-btn" type="button" class="activity-pill-btn">
+                        <span class="activity-pill-label">Sedentary</span>
+                        <span class="activity-pill-chevron">&#9662;</span>
+                      </button>
+                      <input type="hidden" id="daily-activity-level" name="daily_activity_level" value="sedentary">
+                      <button id="open-log-activity-modal" class="activity-pill-btn activity-pill-primary">
+                        <span style="font-size:1.15em; margin-right: 6px;">&#43;</span> Log Activity
+                      </button>
                     </div>
-                    <h3>Log Activity</h3>
-                    <form id="activity-form">
-                        <div class="form-group">
+                    <style>
+                    .activity-action-row-minimal {
+                      display: flex;
+                      gap: 12px;
+                      align-items: center;
+                      margin-bottom: 18px;
+                    }
+                    .activity-pill-btn {
+                      display: flex;
+                      align-items: center;
+                      gap: 6px;
+                      background: #f6f8fa;
+                      color: #222;
+                      border: 1.5px solid #e0e4ea;
+                      border-radius: 999px;
+                      padding: 10px 22px;
+                      font-size: 1.08em;
+                      font-weight: 500;
+                      cursor: pointer;
+                      transition: background 0.18s, border 0.18s, color 0.18s;
+                      box-shadow: none;
+                      outline: none;
+                    }
+                    .activity-pill-btn:hover, .activity-pill-btn:focus {
+                      background: #e9f1ff;
+                      border-color: #b6d4fe;
+                    }
+                    .activity-pill-primary {
+                      background: #2563eb;
+                      color: #fff;
+                      border: none;
+                      font-weight: 600;
+                    }
+                    .activity-pill-primary:hover, .activity-pill-primary:focus {
+                      background: #1746a2;
+                    }
+                    .activity-pill-label {
+                      flex: 1;
+                      text-align: left;
+                    }
+                    .activity-pill-chevron {
+                      font-size: 1.1em;
+                      color: #888;
+                    }
+                    @media (max-width: 600px) {
+                      .activity-action-row-minimal {
+                        flex-direction: column;
+                        gap: 10px;
+                        align-items: stretch;
+                      }
+                    }
+                    </style>
+                    <!-- Modal for activity level selection -->
+                    <div id="activity-level-modal" class="modal" style="display:none; background: rgba(0,0,0,0.18); align-items: center; justify-content: center;">
+                        <div class="modal-content" style="max-width: 400px; margin: 40px auto; padding: 28px 24px 20px 24px; border-radius: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.18); background: #fff; position: relative;">
+                            <span class="close" id="close-activity-level-modal" style="position: absolute; right: 16px; top: 10px; font-size: 1.4em; cursor: pointer;">&times;</span>
+                            <h3 style="margin-bottom: 18px;">Select Today's Activity Level</h3>
+                            <div style="display: flex; flex-direction: column; gap: 14px;">
+                              <button class="activity-level-option" data-value="sedentary">
+                                <div class="activity-title">Sedentary</div>
+                                <div class="activity-desc">(desk job or mostly sitting all day, little movement outside of logged exercise)</div>
+                              </button>
+                              <button class="activity-level-option" data-value="light">
+                                <div class="activity-title">Light</div>
+                                <div class="activity-desc">(on your feet a bit—teacher, retail, errands—but not physically strenuous)</div>
+                              </button>
+                              <button class="activity-level-option" data-value="moderate">
+                                <div class="activity-title">Moderate</div>
+                                <div class="activity-desc">(on your feet most of the day—waiter, nurse, warehouse worker—or a lot of walking)</div>
+                              </button>
+                              <button class="activity-level-option" data-value="active">
+                                <div class="activity-title">Active</div>
+                                <div class="activity-desc">(very physically demanding job—construction, mover—or lots of unlogged physical activity)</div>
+                              </button>
+                              <button class="activity-level-option" data-value="very_active">
+                                <div class="activity-title">Very Active</div>
+                                <div class="activity-desc">(athlete, military, or extremely physical job plus extra activity)</div>
+                              </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Log Activity Button and Modal -->
+                    <div style="display: flex; justify-content: flex-end; margin-bottom: 18px;">
+                    </div>
+                    <div id="log-activity-modal" class="modal" style="display:none; background: rgba(0,0,0,0.25); align-items: center; justify-content: center;">
+                      <div class="modal-content log-activity-modal-modern" style="max-width: 420px; margin: 40px auto; padding: 0 0 20px 0; border-radius: 18px; box-shadow: 0 8px 32px rgba(0,0,0,0.18); background: #fff; position: relative;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 22px 28px 10px 28px; border-bottom: 1.5px solid #f0f0f0; border-radius: 18px 18px 0 0;">
+                          <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 1.5em; color: #007bff;">🏃‍♂️</span>
+                            <span style="font-size: 1.18em; font-weight: 600; color: #222;">Log Activity</span>
+                          </div>
+                          <button type="button" id="close-log-activity-modal" aria-label="Close" style="background: none; border: none; font-size: 1.7em; color: #888; cursor: pointer; transition: color 0.2s;"><span>&times;</span></button>
+                        </div>
+                        <form id="activity-form" style="padding: 24px 28px 0 28px;">
+                          <!-- Modern Today's Activity Level -->
+                          <!--
+                          <div class="form-group" style="margin-bottom: 18px;">
+                            <label for="daily-activity-level" style="font-weight: 600; color: #222; display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                              <span style="font-size: 1.15em; color: #43a047;">💡</span> Today's Activity Level
+                            </label>
+                            <select id="daily-activity-level" name="daily_activity_level" style="border-radius: 6px; border: 1.5px solid #ddd; padding: 10px 12px; font-size: 1em; width: 100%;">
+                              <option value="sedentary" selected>Sedentary (desk job or mostly sitting all day, little movement outside of logged exercise)</option>
+                              <option value="light">Light (on your feet a bit—teacher, retail, errands—but not physically strenuous)</option>
+                              <option value="moderate">Moderate (on your feet most of the day—waiter, nurse, warehouse worker—or a lot of walking)</option>
+                              <option value="active">Active (very physically demanding job—construction, mover—or lots of unlogged physical activity)</option>
+                              <option value="very_active">Very Active (athlete, military, or extremely physical job plus extra activity)</option>
+                            </select>
+                            <small class="form-text text-muted" style="color: #888; font-size: 0.97em; margin-top: 4px; display: block;">Tip: Most users should select <b>Sedentary</b> or <b>Light</b> if all exercise is logged. Use higher levels only if your job or lifestyle is physically demanding in addition to your workouts.</small>
+                          </div>
+                          -->
+                          <!-- End Modern Today's Activity Level -->
+                          <input type="hidden" id="activity-date" name="activity_date">
+                          <div class="form-group">
                             <label for="activity-type">Activity Type *</label>
                             <select id="activity-type" name="activity_type" required>
-                                <option value="">Select Activity</option>
-                                <option value="Walking">Walking</option>
-                                <option value="Cycling">Cycling</option>
-                                <option value="Mowing Lawn">Mowing Lawn</option>
-                                <option value="Running">Running</option>
-                                <option value="Strength Training">Strength Training</option>
-                                <option value="Other">Other</option>
+                              <option value="">Select Activity</option>
+                              <option value="Walking">Walking</option>
+                              <option value="Cycling">Cycling</option>
+                              <option value="Mowing Lawn">Mowing Lawn</option>
+                              <option value="Running">Running</option>
+                              <option value="Strength Training">Strength Training</option>
+                              <option value="Other">Other</option>
                             </select>
                             <input type="text" id="custom-activity-type" name="custom_activity_type" placeholder="Enter custom activity" style="display: none;">
-                        </div>
-                        <div class="form-group">
+                          </div>
+                          <div class="form-group">
                             <label for="duration">Duration (minutes) *</label>
                             <input type="number" id="duration" name="duration" step="0.1" required>
-                        </div>
-                        <div class="form-group" id="miles-group" style="display: none;">
+                          </div>
+                          <div class="form-group" id="miles-group" style="display: none;">
                             <label for="miles">Distance (miles)</label>
                             <input type="number" id="miles" name="miles" step="0.1" min="0">
-                        </div>
-                        <div class="form-group">
+                          </div>
+                          <div class="form-group">
                             <label for="intensity">Intensity *</label>
                             <select id="intensity" name="intensity" required>
-                                <option value="">Select Intensity</option>
-                                <option value="Low">Low</option>
-                                <option value="Moderate">Moderate</option>
-                                <option value="High">High</option>
+                              <option value="">Select Intensity</option>
+                              <option value="Low">Low</option>
+                              <option value="Moderate">Moderate</option>
+                              <option value="High">High</option>
                             </select>
-                        </div>
-                        <button type="submit" id="save-activity-btn">Save Activity</button>
-                    </form>
+                          </div>
+                          <div style="display: flex; gap: 14px; margin-top: 22px; justify-content: flex-end;">
+                            <button type="submit" id="save-activity-btn" class="btn btn-primary">Save Activity</button>
+                            <button type="button" class="btn btn-secondary" id="cancel-activity-btn">Cancel</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                    <!-- End Log Activity Modal -->
 
                     <!-- Distance Milestones Section -->
                     <div class="distance-milestones-section">
@@ -1253,45 +1702,57 @@
                         </div>
                     </div>
 
-                    <h3>Daily Activities</h3>
-                    <div id="total-calories-burned"></div>
-                    <table id="activity-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Activity Type</th>
-                                <th>Duration (min)</th>
-                                <th>Miles</th>
-                                <th>Intensity</th>
-                                <th>Calories Burned</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+                    <!-- Add this above the miles summary input and results -->
+                    <div class="activity-flex-row">
+                      <div class="miles-summary-section half-width-section">
+                        <div class="miles-summary-card">
+                          <div class="miles-summary-header">
+                            <h3 style="margin: 0 0 12px 0; color: #222; font-size: 1.13em; font-weight: 600;">Miles Summary</h3>
+                            <div class="miles-summary-timeframe">
+                              <label for="miles-timeframe">Timeframe:</label>
+                              <select id="miles-timeframe">
+                                <option value="1">Today</option>
+                                <option value="7">Last 7 days</option>
+                                <option value="30">Last 30 days</option>
+                                <option value="90">Last 90 days</option>
+                                <option value="365">Last 365 days</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div style="color: #666; font-size: 1em; margin-bottom: 8px;">View your total miles by activity type for a selected timeframe.</div>
+                          <div id="miles-summary-results" style="margin-top: 10px;"></div>
+                        </div>
+                      </div>
+                      <div class="today-activities-section half-width-section">
+                        <h3>Today's Activities</h3>
+                        <div id="total-calories-burned"></div>
+                        <div id="activity-list" class="activity-list-modern"></div>
+                      </div>
+                    </div>
 
                     <h3>TDEE Summary</h3>
                     <div id="tdee-summary">
                         <button id="record-tdee-btn" class="btn">Record Today's TDEE</button>
                     </div>
 
-                    <h3>TDEE History</h3>
+                    <h3 style="margin-top: 32px;">TDEE History</h3>
+                    <div style="color: #666; font-size: 1em; margin-bottom: 10px;">See your historical Total Daily Energy Expenditure (TDEE), calorie intake, and energy balance. Use this to spot trends and track your progress over time.</div>
                     <canvas id="tdee-chart"></canvas>
                     <table id="tdee-history-table">
                         <thead>
                             <tr>
                                 <th>Date</th>
-                                <th>BMR (kcal)</th>
-                                <th>Base TDEE</th>
-                                <th>Workout Calories</th>
-                                <th>TDEE (kcal)</th>
-                                <th>Calorie Intake</th>
-                                <th>Balance</th>
-                                <th>Status</th>
+                                <th title="Basal Metabolic Rate (your body's energy use at rest)">BMR (kcal)<br><span style='font-weight:normal;font-size:0.9em;color:#888;'>(resting)</span></th>
+                                <th title="Base TDEE is your estimated daily calories burned from your activity level, not including workouts.">Base TDEE<br><span style='font-weight:normal;font-size:0.9em;color:#888;'>(activity level only)</span></th>
+                                <th title="Calories burned from logged workouts.">Workout Calories<br><span style='font-weight:normal;font-size:0.9em;color:#888;'>(from workouts)</span></th>
+                                <th title="Total Daily Energy Expenditure (your total calories burned for the day)">TDEE (kcal)<br><span style='font-weight:normal;font-size:0.9em;color:#888;'>(total)</span></th>
+                                <th title="Calories you ate/logged for the day.">Calorie Intake<br><span style='font-weight:normal;font-size:0.9em;color:#888;'>(eaten)</span></th>
+                                <th title="Calorie Intake minus TDEE. Negative = deficit, positive = surplus.">Balance<br><span style='font-weight:normal;font-size:0.9em;color:#888;'>(intake - TDEE)</span></th>
+                                <th title="Whether you were in a deficit, surplus, or maintenance.">Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="tdee-history-table"></tbody>
+                        <tbody id="tdee-history-tbody"></tbody>
                     </table>
 
                     <div id="edit-activity-modal" class="modal">
@@ -1300,6 +1761,8 @@
                             <h2>Edit Activity</h2>
                             <form id="edit-activity-form">
                                 <input type="hidden" id="edit-activity-id" name="id">
+                                <input type="hidden" id="edit-activity-date" name="activity_date">
+                                <input type="hidden" id="edit-miles" name="miles">
                                 <div class="form-group">
                                     <label for="edit-activity-type">Activity Type *</label>
                                     <select id="edit-activity-type" name="activity_type" required>
@@ -1326,8 +1789,10 @@
                                         <option value="High">High</option>
                                     </select>
                                 </div>
-                                <button type="submit">Update Activity</button>
-                                <button type="button" class="cancel">Cancel</button>
+                                <div class="modal-buttons" style="display: flex; gap: 14px; margin-top: 22px; justify-content: flex-end;">
+                                    <button type="submit" class="btn btn-primary">Update Activity</button>
+                                    <button type="button" class="btn btn-secondary cancel">Cancel</button>
+                                </div>
                             </form>
                         </div>
                     </div>
