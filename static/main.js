@@ -3,72 +3,42 @@ import { showSnack } from './utils.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('main.js: DOMContentLoaded');
-    const tabs = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
+    const sidebarLinks = document.querySelectorAll('.sidebar-item');
     const today = new Date().toISOString().split('T')[0];
 
-    // Check for a 'tab' query parameter to set the active tab
+    // Check for a 'tab' query parameter to set the active section
     const urlParams = new URLSearchParams(window.location.search);
-    const activeTabId = urlParams.get('tab') || 'fitness';
+    const activeSectionId = urlParams.get('tab') || 'fitness';
 
-    tabs.forEach(t => t.classList.remove('active'));
+    // Remove all active classes
     tabContents.forEach(c => c.classList.remove('active'));
+    sidebarLinks.forEach(l => l.classList.remove('active'));
 
-    const tabToActivate = document.querySelector(`.tab-button[data-tab="${activeTabId}"]`);
-    const contentToActivate = document.getElementById(activeTabId);
+    // Activate the correct section and sidebar item
+    const contentToActivate = document.getElementById(activeSectionId);
+    const sidebarToActivate = document.querySelector(`.sidebar-item[data-section="${activeSectionId}"]`);
+    if (contentToActivate) contentToActivate.classList.add('active');
+    if (sidebarToActivate) sidebarToActivate.classList.add('active');
 
-    if (tabToActivate && contentToActivate) {
-        tabToActivate.classList.add('active');
-        contentToActivate.classList.add('active');
-    } else {
-        // Fallback to the first tab if the specified tab is not found
-        if (tabs.length > 0) tabs[0].classList.add('active');
-        if (tabContents.length > 0) tabContents[0].classList.add('active');
-    }
-
-    // Handle tab switching
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            console.log(`main.js: Tab clicked: ${tab.getAttribute('data-tab')}`);
-            tabs.forEach(t => t.classList.remove('active'));
+    // Sidebar navigation logic
+    sidebarLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const section = link.getAttribute('data-section');
+            if (!section) return;
+            // Hide all tab contents
             tabContents.forEach(c => c.classList.remove('active'));
-            tab.classList.add('active');
-            const tabId = tab.getAttribute('data-tab');
-            const content = document.getElementById(tabId);
-            if (content) {
-                content.classList.add('active');
-                console.log(`main.js: Activated tab content: ${tabId}`);
-                // Update URL with the active tab parameter
-                const url = new URL(window.location);
-                url.searchParams.set('tab', tabId);
-                window.history.pushState({}, '', url);
-                if (tabId === 'work') {
-                    window.fetchWorkEntries();
-                }
-                if (tabId === 'trading') {
-                    // Always load and visually activate the correct trading sub-tab
-                    const tradingSubTabs = document.querySelectorAll('.sub-tab-button[data-trading-sub-tab]');
-                    const tradingSubTabContents = document.querySelectorAll('#trading .sub-tab-content');
-                    let subTab = 'trading-dashboard';
-                    const activeTradingSubTab = document.querySelector('.sub-tab-button[data-trading-sub-tab].active');
-                    if (activeTradingSubTab) {
-                        subTab = 'trading-' + activeTradingSubTab.getAttribute('data-trading-sub-tab');
-                    }
-                    // Remove all active classes
-                    tradingSubTabs.forEach(t => t.classList.remove('active'));
-                    tradingSubTabContents.forEach(c => c.classList.remove('active'));
-                    // Activate the correct sub-tab button and content
-                    const btn = document.querySelector('.sub-tab-button[data-trading-sub-tab][data-trading-sub-tab="' + subTab.replace('trading-', '') + '"]');
-                    const content = document.getElementById(subTab);
-                    if (btn) btn.classList.add('active');
-                    if (content) content.classList.add('active');
-                    import('./trading.js').then(mod => {
-                        if (mod.loadTradingSubTab) mod.loadTradingSubTab(subTab);
-                    });
-                }
-            } else {
-                console.error(`main.js: Tab content not found for ID: ${tabId}`);
-            }
+            // Show the selected section
+            const content = document.getElementById(section);
+            if (content) content.classList.add('active');
+            // Update sidebar active state
+            sidebarLinks.forEach(l => l.classList.remove('active'));
+            link.classList.add('active');
+            // Update URL
+            const url = new URL(window.location);
+            url.searchParams.set('tab', section);
+            window.history.pushState({}, '', url);
         });
     });
 
@@ -77,37 +47,63 @@ document.addEventListener('DOMContentLoaded', () => {
         input.value = today;
     });
 
-    // Handle fitness sub-tabs
-    const fitnessSubTabs = document.querySelectorAll('.sub-tab-button[data-sub-tab]');
-    fitnessSubTabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            console.log(`main.js: Fitness sub-tab clicked: ${tab.getAttribute('data-sub-tab')}`);
-            fitnessSubTabs.forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.sub-tab-content').forEach(c => c.classList.remove('active'));
-            tab.classList.add('active');
-            const subTabId = tab.getAttribute('data-sub-tab');
-            const subTabContent = document.getElementById(subTabId);
-            if (subTabContent) {
-                subTabContent.classList.add('active');
-                console.log(`main.js: Activated fitness sub-tab content: ${subTabId}`);
-                
-                // Update URL with the active sub-tab parameter
-                const url = new URL(window.location);
-                url.searchParams.set('subtab', subTabId);
-                window.history.pushState({}, '', url);
-            } else {
-                console.error(`main.js: Fitness sub-tab content not found for ID: ${subTabId}`);
-            }
+    // DRY sub-tab switching logic for fitness, mood, and work
+    function setupSubTabs({
+        tabButtonSelector,
+        tabContentSelector,
+        dataAttr,
+        contentIdPrefix,
+        useDisplayNone = false
+    }) {
+        const subTabs = document.querySelectorAll(tabButtonSelector);
+        const subTabContents = document.querySelectorAll(tabContentSelector);
+        subTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                subTabs.forEach(t => t.classList.remove('active'));
+                subTabContents.forEach(c => {
+                    c.classList.remove('active');
+                    if (useDisplayNone) c.style.display = 'none';
+                });
+                tab.classList.add('active');
+                const subTabId = tab.getAttribute(dataAttr);
+                const subTabContent = document.getElementById(`${contentIdPrefix}${subTabId}`);
+                if (subTabContent) {
+                    subTabContent.classList.add('active');
+                    if (useDisplayNone) subTabContent.style.display = 'block';
+                }
+            });
         });
+    }
+
+    // Setup sub-tabs for fitness, mood, and work
+    setupSubTabs({
+        tabButtonSelector: '.sub-tab-button[data-sub-tab]',
+        tabContentSelector: '.sub-tab-content',
+        dataAttr: 'data-sub-tab',
+        contentIdPrefix: '',
+        useDisplayNone: false
+    });
+    setupSubTabs({
+        tabButtonSelector: '.mood-sub-tab-button',
+        tabContentSelector: '.mood-sub-tab-content',
+        dataAttr: 'data-mood-sub-tab',
+        contentIdPrefix: 'mood-',
+        useDisplayNone: false
+    });
+    setupSubTabs({
+        tabButtonSelector: '.work-sub-tab-button',
+        tabContentSelector: '.work-sub-tab-content',
+        dataAttr: 'data-work-sub-tab',
+        contentIdPrefix: 'work-',
+        useDisplayNone: true // work sub-tabs use display:none in HTML
     });
 
     // Initialize Stats sub-tab or restore from URL parameter
     const urlSubTab = urlParams.get('subtab') || 'dashboard';
     const subTabToActivate = document.querySelector(`.sub-tab-button[data-sub-tab="${urlSubTab}"]`);
     const subTabContentToActivate = document.getElementById(urlSubTab);
-    
     if (subTabToActivate && subTabContentToActivate) {
-        fitnessSubTabs.forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.sub-tab-button[data-sub-tab]').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.sub-tab-content').forEach(c => c.classList.remove('active'));
         subTabToActivate.classList.add('active');
         subTabContentToActivate.classList.add('active');
@@ -117,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const firstSubTab = document.querySelector('.sub-tab-button[data-sub-tab="dashboard"]');
         const firstSubTabContent = document.getElementById('dashboard');
         if (firstSubTab && firstSubTabContent) {
-            fitnessSubTabs.forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.sub-tab-button[data-sub-tab]').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.sub-tab-content').forEach(c => c.classList.remove('active'));
             firstSubTab.classList.add('active');
             firstSubTabContent.classList.add('active');

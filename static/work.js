@@ -1,16 +1,6 @@
 import { showSnack } from './utils.js';
 
 document.addEventListener('DOMContentLoaded', function() {
-    const workTab = document.querySelector('.tab-button[data-tab="work"]');
-    if (workTab) {
-        // If the work tab is active on page load, fetch entries.
-        if (workTab.classList.contains('active')) {
-            window.fetchWorkEntries();
-        }
-        // Also fetch entries when the tab is clicked.
-        workTab.addEventListener('click', window.fetchWorkEntries);
-    }
-
     // Modal setup
     const addModal = document.getElementById('addWorkModal');
     const editModal = document.getElementById('editWorkModal');

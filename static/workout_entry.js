@@ -68,11 +68,7 @@ const setsTableBody = document.querySelector('#sets-table tbody');
 // Tab navigation logic
 const tabLogNew = document.getElementById('tab-log-new');
 const tabTrack = document.getElementById('tab-track');
-const tabHistory = document.getElementById('tab-history');
 const trackSection = document.getElementById('track-section');
-const historySection = document.getElementById('history-section');
-const historyExercise = document.getElementById('history-exercise');
-const historyTableBody = document.querySelector('#history-table tbody');
 
 // Plus/minus button logic for weight and reps
 const weightInput = document.getElementById('weight');
@@ -259,7 +255,7 @@ function setupCustomExerciseForm() {
 }
 
 function setActiveTab(tab) {
-    [tabLogNew, tabTrack, tabHistory].forEach(btn => btn.classList.remove('active'));
+    [tabLogNew, tabTrack].forEach(btn => btn.classList.remove('active'));
     tab.classList.add('active');
 }
 
@@ -574,49 +570,6 @@ setTimeout(() => {
 tabTrack.addEventListener('click', () => {
     setActiveTab(tabTrack);
     trackSection.style.display = '';
-    historySection.style.display = 'none';
-});
-
-tabHistory.addEventListener('click', async () => {
-    setActiveTab(tabHistory);
-    trackSection.style.display = 'none';
-    historySection.style.display = '';
-    historyExercise.textContent = exerciseName || '';
-    // Load all history for this exercise
-    historyTableBody.innerHTML = '';
-    try {
-        const resp = await fetch('/fitness/api/workouts');
-        const data = await resp.json();
-        // Filter for this exercise
-        const records = data.filter(w => w.exercise === exerciseName);
-        // Group by date
-        const grouped = {};
-        records.forEach(r => {
-            if (!grouped[r.date]) grouped[r.date] = [];
-            grouped[r.date].push(r);
-        });
-        // Sort by date desc
-        const dates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
-        dates.forEach(date => {
-            // Sort sets by set number
-            grouped[date].sort((a, b) => a.sets - b.sets);
-            grouped[date].forEach((set, idx) => {
-                const row = document.createElement('tr');
-                const totalWeight = calculateTotalWeight(set.weight);
-                
-                row.innerHTML = `
-                    <td>${date}</td>
-                    <td>${set.sets}</td>
-                    <td>${set.weight}</td>
-                    <td><strong>${totalWeight}</strong></td>
-                    <td>${set.reps}</td>
-                `;
-                historyTableBody.appendChild(row);
-            });
-        });
-    } catch (err) {
-        historyTableBody.innerHTML = '<tr><td colspan="4">Failed to load history</td></tr>';
-    }
 });
 
 if (tabLogNew) {
