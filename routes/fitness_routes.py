@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, current_app, render_template
 from flask_login import login_required, current_user
 from models import db, User, Stat, FoodReference, FoodEntry, Workout, Activity, TDEE, UserSettings, ExerciseCategory, Exercise, UserFavoriteExercise, ProgressPic, PersonalRecord, FastingPeriod, DistanceMilestone, UserExercise, WorkoutTemplate, WorkoutTemplateExercise, WorkoutSession, WorkoutSessionExercise
 from utils import clean_nutrient_value, convert_units
-from datetime import datetime
+from datetime import datetime, timedelta
 import traceback
 import os
 from werkzeug.utils import secure_filename
@@ -125,6 +125,19 @@ def calculate_tdee_for_date(user_id, date, save_to_db=False, activity_level=None
         # Save to database only if requested
         if save_to_db:
             tdee = TDEE.query.filter_by(user_id=user_id, date=date).first()
+            # Preserve manually set activity_level if not provided
+            if not activity_level and tdee and tdee.activity_level:
+                activity_level = tdee.activity_level
+            # Only update if activity_level is not None
+            if activity_level is not None:
+                daily_activity_level = activity_level
+                activity_multiplier = activity_multipliers.get(daily_activity_level, 1.375)
+                base_tdee = bmr * activity_multiplier
+                tdee_data['activity_level'] = daily_activity_level
+                tdee_data['activity_multiplier'] = activity_multiplier
+                tdee_data['base_tdee'] = round(base_tdee)
+                tdee_data['tdee'] = round(base_tdee + activity_calories)
+            # The following fields are valid for the TDEE model; linter errors are false positives
             if tdee:
                 tdee.bmr = tdee_data['bmr']
                 tdee.activity_calories = tdee_data['activity_calories']
@@ -157,9 +170,9 @@ def calculate_tdee_for_date(user_id, date, save_to_db=False, activity_level=None
         print(f"Error calculating TDEE: {str(e)}")
         return None
 
-def update_tdee_for_date(user_id, date):
+def update_tdee_for_date(user_id, date, activity_level=None):
     """Update or create TDEE record for a given date."""
-    return calculate_tdee_for_date(user_id, date, save_to_db=True)
+    return calculate_tdee_for_date(user_id, date, save_to_db=True, activity_level=activity_level)
 
 def update_all_tdee_records(user_id):
     """Update TDEE records for all dates when profile data changes."""
@@ -179,7 +192,7 @@ def update_all_tdee_records(user_id):
             all_dates.add(date)
         
         for date in all_dates:
-            update_tdee_for_date(user_id, date)
+            update_tdee_for_date(user_id, date, activity_level=None)
         return True
     except Exception as e:
         print(f"Error updating all TDEE records: {str(e)}")
@@ -872,15 +885,16 @@ def record_daily_tdee():
     try:
         data = request.get_json()
         date_str = data.get('date')
+        activity_level = data.get('activity_level')
         
         if not date_str:
             return jsonify({'error': 'Date is required'}), 400
             
         date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        print(f"Recording TDEE for user {current_user.id} on date {date}")
+        print(f"Recording TDEE for user {current_user.id} on date {date} (activity_level={activity_level})")
         
         # The TDEE calculation is triggered here and saved to DB
-        tdee_record = update_tdee_for_date(current_user.id, date)
+        tdee_record = update_tdee_for_date(current_user.id, date, activity_level=activity_level)
         
         if tdee_record:
             print(f"TDEE record created/updated: ID={tdee_record.id}, TDEE={tdee_record.tdee}")
@@ -2697,3 +2711,47 @@ def delete_set(set_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@fitness_bp.route('/api/activity/<int:id>', methods=['GET'])
+@login_required
+def get_activity(id):
+    activity = Activity.query.get_or_404(id)
+    if activity.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    return jsonify({
+        'id': activity.id,
+        'date': activity.date.strftime('%Y-%m-%d'),
+        'activity_type': activity.activity_type,
+        'custom_activity_type': getattr(activity, 'custom_activity_type', ''),
+        'duration': activity.duration,
+        'intensity': activity.intensity,
+        'miles': activity.miles,
+        'calories_burned': activity.calories_burned
+    })
+
+@fitness_bp.route('/api/activity_miles_summary')
+@login_required
+def activity_miles_summary():
+    timeframe = request.args.get('timeframe', '7')
+    now = datetime.now().date()
+    try:
+        days = int(timeframe)
+        start_date = now - timedelta(days=days)
+    except ValueError:
+        return jsonify({'error': 'Invalid timeframe'}), 400
+
+    activities = Activity.query.filter(
+        Activity.user_id == current_user.id,
+        Activity.date >= start_date,
+        Activity.miles != None,
+        Activity.activity_type.in_(['Walking', 'Running', 'Cycling'])
+    ).all()
+
+    summary = {'Walking': 0, 'Running': 0, 'Cycling': 0}
+    for a in activities:
+        if a.activity_type in summary and a.miles:
+            summary[a.activity_type] += a.miles
+
+    summary = {k: round(v, 2) for k, v in summary.items()}
+
+    return jsonify({'start_date': str(start_date), 'end_date': str(now), 'summary': summary})
