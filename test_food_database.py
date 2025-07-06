@@ -100,7 +100,7 @@ def test_food_database():
                 print(f"     - {serving.description}")
         
         print(f"\n✅ Database test completed successfully!")
-        print(f"   You can now use the enhanced food interface at /food/enhanced")
+        print(f"   You can now use the food interface in the dashboard at /dashboard#food")
 
 if __name__ == "__main__":
     test_food_database() 

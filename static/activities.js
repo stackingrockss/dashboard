@@ -1,4 +1,49 @@
-import { showSnack } from './utils.js';
+// Functions are now available globally from utility files
+
+// Listen for food logged events to refresh TDEE summary
+window.addEventListener('foodLogged', () => {
+    console.log('Food logged event received, refreshing TDEE summary...');
+    fetchTdeeSummary(Date.now());
+});
+
+// --- Global Functions ---
+function toggleMilesField(selectElement, milesGroupElement) {
+    if (!selectElement || !milesGroupElement) return;
+    
+    const selectedActivity = selectElement.value.toLowerCase();
+    const distanceActivities = ['walking', 'cycling', 'running'];
+    
+    if (distanceActivities.includes(selectedActivity)) {
+        milesGroupElement.style.display = 'block';
+    } else if (selectedActivity === 'other') {
+        // For "Other" activity type, check if custom activity is distance-based
+        const customActivityInput = selectElement.parentElement.querySelector('input[placeholder*="custom"]');
+        if (customActivityInput) {
+            const customActivity = customActivityInput.value.toLowerCase();
+            const distanceKeywords = ['walk', 'run', 'jog', 'bike', 'cycle', 'hike', 'trail'];
+            const isDistanceActivity = distanceKeywords.some(keyword => customActivity.includes(keyword));
+            milesGroupElement.style.display = isDistanceActivity ? 'block' : 'none';
+        } else {
+            milesGroupElement.style.display = 'none';
+        }
+    } else {
+        milesGroupElement.style.display = 'none';
+        // Clear miles value when hiding
+        const milesInput = milesGroupElement.querySelector('input[name="miles"]');
+        if (milesInput) milesInput.value = '';
+    }
+}
+
+function toggleCustomActivityField(selectElement, customInputElement) {
+    if (!selectElement || !customInputElement) return;
+    
+    if (selectElement.value.toLowerCase() === 'other') {
+        customInputElement.style.display = 'block';
+    } else {
+        customInputElement.style.display = 'none';
+        customInputElement.value = '';
+    }
+}
 
 // --- Activities Logic ---
 // (Moved from fitness.js)
@@ -37,10 +82,10 @@ function getBalanceLabel(balance) {
     return 'Neutral';
 }
 
-async function fetchTdeeSummary() {
+async function fetchTdeeSummary(ts) {
     tdeeSummaryLoading();
     try {
-        const response = await fetch('/api/tdee');
+        const response = await fetch('/api/tdee' + (ts ? `?ts=${ts}` : ''));
         const data = await response.json();
         const summaryDiv = document.getElementById('tdee-summary');
         if (data.error) {
@@ -63,7 +108,8 @@ async function fetchTdeeSummary() {
         `;
         attachRecordTdeeHandler();
     } catch (e) {
-        document.getElementById('tdee-summary').innerHTML = '<div class="tdee-error">Failed to load TDEE summary.</div>';
+        const summaryDiv = document.getElementById('tdee-summary');
+        if (summaryDiv) summaryDiv.innerHTML = '<div class="tdee-error">Error loading TDEE summary.</div>';
     }
 }
 
@@ -77,7 +123,7 @@ function attachRecordTdeeHandler() {
                 const activityLevel = document.getElementById('daily-activity-level')?.value || null;
                 // Get today's date in YYYY-MM-DD format
                 const today = new Date().toISOString().split('T')[0];
-                const response = await fetch('/record_daily_tdee', {
+                const response = await fetch('/fitness/record_daily_tdee', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ activity_level: activityLevel, date: today })
@@ -89,7 +135,7 @@ function attachRecordTdeeHandler() {
                     window.showSnack ? window.showSnack('TDEE recorded!', 'success') : alert('TDEE recorded!');
                     afterTdeeRecorded();
                 }
-                await fetchTdeeSummary();
+                await fetchTdeeSummary(Date.now());
             } catch (e) {
                 window.showSnack ? window.showSnack('Failed to record TDEE', 'error') : alert('Failed to record TDEE');
             } finally {
@@ -319,25 +365,54 @@ function getTrailKeyByName(name) {
 window.editActivity = async function(id) {
     const modal = document.getElementById('edit-activity-modal');
     const form = document.getElementById('edit-activity-form');
-    if (!modal || !form) return;
+    
+    if (!modal || !form) {
+        return;
+    }
+    
     // Fetch activity data
     try {
         const res = await fetch(`/fitness/api/activity/${id}`);
         const data = await res.json();
+        
         if (!data || data.error) {
             showSnack(data.error || 'Failed to load activity', 'error');
             return;
         }
         // Populate form fields
-        form.elements['id'].value = data.id;
-        form.elements['edit-activity-type'].value = data.activity_type;
-        form.elements['edit-custom-activity-type'].value = data.custom_activity_type || '';
-        form.elements['edit-duration'].value = data.duration;
-        form.elements['edit-intensity'].value = data.intensity;
-        form.elements['edit-activity-date'].value = data.activity_date || data.date || '';
-        form.elements['edit-miles'].value = data.miles || '';
+        try {
+            form.elements['edit-activity-id'].value = data.id;
+            form.elements['edit-activity-type'].value = data.activity_type;
+            form.elements['edit-custom-activity-type'].value = data.custom_activity_type || '';
+            form.elements['edit-duration'].value = data.duration;
+            form.elements['edit-intensity'].value = data.intensity;
+            form.elements['edit-activity-date'].value = data.date || '';
+            form.elements['edit-miles'].value = data.miles || '';
+        } catch (error) {
+            console.error('Error populating form fields:', error);
+        }
+        
+        // Show/hide miles field based on activity type
+        const editActivityTypeSelect = document.getElementById('edit-activity-type');
+        const editMilesGroup = document.getElementById('edit-miles-group');
+        if (editActivityTypeSelect && editMilesGroup) {
+            toggleMilesField(editActivityTypeSelect, editMilesGroup);
+        }
+        
         // Show modal
         modal.style.display = 'block';
+        
+        // Force modal to be visible with inline styles
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100%';
+        modal.style.height = '100%';
+        modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
+        modal.style.zIndex = '1000';
+        modal.style.display = 'flex';
+        modal.style.justifyContent = 'center';
+        modal.style.alignItems = 'center';
     } catch (e) {
         showSnack('Failed to load activity', 'error');
     }
@@ -346,11 +421,17 @@ window.editActivity = async function(id) {
 window.deleteActivity = async function(id) {
     if (!confirm('Delete this activity?')) return;
     try {
-        const res = await fetch(`/fitness/delete_activity/${id}`);
+        const res = await fetch(`/fitness/delete_activity/${id}`, {
+            method: 'DELETE'
+        });
         const data = await res.json();
         if (res.ok) {
             showSnack(data.message || 'Activity deleted!', 'success');
             loadDailyActivities();
+            // Refresh milestone if it exists
+            if (typeof fetchCurrentMilestone === 'function') fetchCurrentMilestone();
+            // Refresh miles summary
+            if (typeof loadMilesSummary === 'function') loadMilesSummary();
         } else {
             showSnack(data.error || 'Failed to delete activity', 'error');
         }
@@ -529,10 +610,27 @@ async function loadMilesSummary() {
     }
 }
 
+async function loadTdeeHistory() {
+    const chartCanvas = document.getElementById('tdee-history-chart');
+    if (!chartCanvas) return;
+    try {
+        const response = await fetch('/fitness/api/tdee/history');
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+            renderTdeeChart(data, chartCanvas);
+        } else {
+            chartCanvas.parentElement.innerHTML = '<div style="color:#888;">No TDEE history found.</div>';
+        }
+    } catch (e) {
+        if (chartCanvas.parentElement)
+            chartCanvas.parentElement.innerHTML = '<div style="color:#888;">Error loading TDEE history.</div>';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     injectTdeeSummaryStyles();
     if (document.getElementById('tdee-summary')) {
-        fetchTdeeSummary();
+        fetchTdeeSummary(Date.now());
     }
 
     // Set activity_date to today by default
@@ -551,6 +649,24 @@ document.addEventListener('DOMContentLoaded', () => {
         activityForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(activityForm);
+            // Add repeat activity fields if checked
+            const repeatCheckbox = document.getElementById('repeat-activity-checkbox');
+            if (repeatCheckbox && repeatCheckbox.checked) {
+                formData.set('repeat_activity', '1');
+                // Collect checked days
+                const days = Array.from(activityForm.querySelectorAll('input[name="repeat_days"]:checked')).map(cb => cb.value);
+                days.forEach(day => formData.append('repeat_days', day));
+                // Start/end dates
+                const startDate = document.getElementById('repeat-start-date')?.value;
+                const endDate = document.getElementById('repeat-end-date')?.value;
+                if (startDate) formData.set('repeat_start_date', startDate);
+                if (endDate) formData.set('repeat_end_date', endDate);
+            } else {
+                formData.delete('repeat_activity');
+                formData.delete('repeat_days');
+                formData.delete('repeat_start_date');
+                formData.delete('repeat_end_date');
+            }
             try {
                 const response = await fetch('/fitness/add_activity', {
                     method: 'POST',
@@ -567,6 +683,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         activityDateInput.value = today;
                     }
                     loadDailyActivities();
+                    if (typeof fetchTdeeSummary === 'function') fetchTdeeSummary(Date.now());
+                    // Refresh milestone if it exists
+                    if (typeof fetchCurrentMilestone === 'function') fetchCurrentMilestone();
+                    // Refresh miles summary
+                    if (typeof loadMilesSummary === 'function') loadMilesSummary();
                     // Close the modal after saving
                     const logActivityModal = document.getElementById('log-activity-modal');
                     if (logActivityModal) logActivityModal.style.display = 'none';
@@ -665,14 +786,27 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         activityLevelOptions.forEach(btn => {
-            btn.onclick = function() {
+            btn.onclick = async function() {
                 const value = btn.getAttribute('data-value');
                 activityLevelInput.value = value;
                 if (activityLevelLabel) activityLevelLabel.textContent = activityLevelLabels[value];
                 activityLevelModal.style.display = 'none';
-                // Trigger TDEE update logic if needed
-                if (typeof loadMilesSummary === 'function') loadMilesSummary();
-                if (typeof fetchTdeeSummary === 'function') fetchTdeeSummary();
+                const today = new Date().toISOString().split('T')[0];
+                try {
+                    // Await the POST request
+                    const postResponse = await fetch('/fitness/record_daily_tdee', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ activity_level: value, date: today })
+                    });
+                    
+                    // Await the summary fetch with cache busting
+                    if (typeof fetchTdeeSummary === 'function') {
+                        await fetchTdeeSummary(Date.now());
+                    }
+                } catch (e) {
+                    console.error('Error in activity level change:', e);
+                }
             };
         });
     }
@@ -690,6 +824,41 @@ document.addEventListener('DOMContentLoaded', () => {
     const logActivityModal = document.getElementById('log-activity-modal');
     const closeLogActivityModal = document.getElementById('close-log-activity-modal');
     const cancelActivityBtn = document.getElementById('cancel-activity-btn');
+    
+    // Handle miles field visibility based on activity type
+    const activityTypeSelect = document.getElementById('activity-type');
+    const milesGroup = document.getElementById('miles-group');
+    const editActivityTypeSelect = document.getElementById('edit-activity-type');
+    const editMilesGroup = document.getElementById('edit-miles-group');
+    
+    // Add event listeners for custom activity type input
+    const customActivityTypeInput = document.getElementById('custom-activity-type');
+    const editCustomActivityTypeInput = document.getElementById('edit-custom-activity-type');
+    
+    if (customActivityTypeInput && activityTypeSelect && milesGroup) {
+        activityTypeSelect.addEventListener('change', () => {
+            toggleCustomActivityField(activityTypeSelect, customActivityTypeInput);
+            toggleMilesField(activityTypeSelect, milesGroup);
+        });
+        customActivityTypeInput.addEventListener('input', () => {
+            if (activityTypeSelect.value.toLowerCase() === 'other') {
+                toggleMilesField(activityTypeSelect, milesGroup);
+            }
+        });
+    }
+    
+    if (editCustomActivityTypeInput && editActivityTypeSelect && editMilesGroup) {
+        editActivityTypeSelect.addEventListener('change', () => {
+            toggleCustomActivityField(editActivityTypeSelect, editCustomActivityTypeInput);
+            toggleMilesField(editActivityTypeSelect, editMilesGroup);
+        });
+        editCustomActivityTypeInput.addEventListener('input', () => {
+            if (editActivityTypeSelect.value.toLowerCase() === 'other') {
+                toggleMilesField(editActivityTypeSelect, editMilesGroup);
+            }
+        });
+    }
+    
     // Use the same activityForm variable for both modal and form logic
     if (openLogActivityBtn && logActivityModal) {
         openLogActivityBtn.onclick = () => {
@@ -698,6 +867,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // Set date to today
             const activityDateInput = document.getElementById('activity-date');
             if (activityDateInput) activityDateInput.value = new Date().toISOString().split('T')[0];
+            
+            // Reset miles field visibility
+            if (milesGroup) milesGroup.style.display = 'none';
         };
     }
     if (closeLogActivityModal && logActivityModal) {
@@ -736,14 +908,208 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (response.ok) {
                     showSnack(result.message || 'Activity updated!', 'success');
                     loadDailyActivities();
+                    // Refresh milestone if it exists
+                    if (typeof fetchCurrentMilestone === 'function') fetchCurrentMilestone();
+                    // Refresh miles summary
+                    if (typeof loadMilesSummary === 'function') loadMilesSummary();
                     // Close the modal after updating
                     const editActivityModal = document.getElementById('edit-activity-modal');
                     if (editActivityModal) editActivityModal.style.display = 'none';
-                    // Ensure the activities sub-tab is active
-                    const activitiesTabBtn = document.getElementById('activity-sub-tab-activities');
-                    if (activitiesTabBtn) activitiesTabBtn.click();
                 } else {
                     showSnack(result.error || 'Failed to update activity', 'error');
+                }
+            } catch (error) {
+                showSnack('Error: ' + error.message, 'error');
+            }
+        });
+    }
+
+    // Repeat Activity show/hide logic
+    const repeatCheckbox = document.getElementById('repeat-activity-checkbox');
+    const repeatOptions = document.getElementById('repeat-options');
+    if (repeatCheckbox && repeatOptions) {
+        repeatCheckbox.addEventListener('change', function() {
+            repeatOptions.style.display = this.checked ? 'block' : 'none';
+        });
+    }
+
+    // Repeat Activities Modal logic
+    const openRepeatModalBtn = document.getElementById('open-repeat-activities-modal');
+    const repeatModal = document.getElementById('repeat-activities-modal');
+    const closeRepeatModalBtn = document.getElementById('close-repeat-activities-modal');
+    const repeatListDiv = document.getElementById('repeat-activities-list');
+
+    function renderRepeatActivitiesList(repeats) {
+        if (!repeats.length) {
+            repeatListDiv.innerHTML = '<p>No repeat activities set.</p>';
+            return;
+        }
+        let html = '<table style="width:100%; font-size:0.97em; border-collapse:collapse;">';
+        html += '<tr><th>Activity</th><th>Days</th><th>Start</th><th>End</th><th></th></tr>';
+        for (const r of repeats) {
+            html += `<tr>
+                <td>${r.activity_type}</td>
+                <td>${r.days_of_week}</td>
+                <td>${r.start_date}</td>
+                <td>${r.end_date || ''}</td>
+                <td><button class="btn btn-outline" data-repeat-id="${r.id}">Delete</button></td>
+            </tr>`;
+        }
+        html += '</table>';
+        repeatListDiv.innerHTML = html;
+        // Attach delete handlers
+        repeatListDiv.querySelectorAll('button[data-repeat-id]').forEach(btn => {
+            btn.onclick = async function() {
+                const id = btn.getAttribute('data-repeat-id');
+                if (!confirm('Delete this repeat activity?')) return;
+                btn.disabled = true;
+                try {
+                    const res = await fetch(`/fitness/api/repeat_activity/${id}`, { method: 'DELETE' });
+                    const data = await res.json();
+                    if (res.ok) {
+                        renderRepeatActivities();
+                    } else {
+                        alert(data.error || 'Failed to delete');
+                        btn.disabled = false;
+                    }
+                } catch (e) {
+                    alert('Error deleting repeat activity');
+                    btn.disabled = false;
+                }
+            };
+        });
+    }
+
+    async function renderRepeatActivities() {
+        repeatListDiv.innerHTML = '<p>Loading...</p>';
+        try {
+            const res = await fetch('/fitness/api/repeat_activities');
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                renderRepeatActivitiesList(data);
+            } else {
+                repeatListDiv.innerHTML = '<p>Error loading repeat activities.</p>';
+            }
+        } catch (e) {
+            repeatListDiv.innerHTML = '<p>Error loading repeat activities.</p>';
+        }
+    }
+
+    if (openRepeatModalBtn && repeatModal) {
+        openRepeatModalBtn.onclick = function() {
+            repeatModal.style.display = 'flex';
+            renderRepeatActivities();
+        };
+    }
+    if (closeRepeatModalBtn && repeatModal) {
+        closeRepeatModalBtn.onclick = function() {
+            repeatModal.style.display = 'none';
+        };
+    }
+    window.addEventListener('click', function(event) {
+        if (event.target === repeatModal) {
+            repeatModal.style.display = 'none';
+        }
+    });
+
+    // New Repeat Activity Form Logic
+    const addNewRepeatActivityBtn = document.getElementById('add-new-repeat-activity-btn');
+    const addRepeatActivityForm = document.getElementById('add-repeat-activity-form');
+    const cancelNewRepeatActivityBtn = document.getElementById('cancel-new-repeat-activity');
+    const newRepeatActivityForm = document.getElementById('new-repeat-activity-form');
+    
+    // Handle miles field visibility for new repeat activity form
+    const newActivityTypeSelect = document.getElementById('new-activity-type');
+    const newCustomActivityTypeInput = document.getElementById('new-custom-activity-type');
+    const newMilesGroup = document.getElementById('new-miles-group');
+    
+    if (newActivityTypeSelect && newCustomActivityTypeInput) {
+        newActivityTypeSelect.addEventListener('change', () => {
+            toggleCustomActivityField(newActivityTypeSelect, newCustomActivityTypeInput);
+            if (newMilesGroup) {
+                toggleMilesField(newActivityTypeSelect, newMilesGroup);
+            }
+        });
+        newCustomActivityTypeInput.addEventListener('input', () => {
+            if (newActivityTypeSelect.value.toLowerCase() === 'other' && newMilesGroup) {
+                toggleMilesField(newActivityTypeSelect, newMilesGroup);
+            }
+        });
+    }
+
+    // Show/hide new repeat activity form
+    if (addNewRepeatActivityBtn && addRepeatActivityForm) {
+        addNewRepeatActivityBtn.onclick = function() {
+            addRepeatActivityForm.style.display = 'block';
+            addNewRepeatActivityBtn.style.display = 'none';
+            // Set default dates
+            const today = new Date().toISOString().split('T')[0];
+            const endDate = new Date();
+            endDate.setMonth(endDate.getMonth() + 3); // 3 months from now
+            const endDateStr = endDate.toISOString().split('T')[0];
+            
+            const startDateInput = document.getElementById('new-repeat-start-date');
+            const endDateInput = document.getElementById('new-repeat-end-date');
+            if (startDateInput) startDateInput.value = today;
+            if (endDateInput) endDateInput.value = endDateStr;
+        };
+    }
+
+    if (cancelNewRepeatActivityBtn && addRepeatActivityForm && addNewRepeatActivityBtn) {
+        cancelNewRepeatActivityBtn.onclick = function() {
+            addRepeatActivityForm.style.display = 'none';
+            addNewRepeatActivityBtn.style.display = 'block';
+            if (newRepeatActivityForm) newRepeatActivityForm.reset();
+        };
+    }
+
+    // Handle new repeat activity form submission
+    if (newRepeatActivityForm) {
+        newRepeatActivityForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(newRepeatActivityForm);
+            
+            // Get selected days
+            const selectedDays = [];
+            const dayCheckboxes = newRepeatActivityForm.querySelectorAll('input[name="repeat_days"]:checked');
+            dayCheckboxes.forEach(checkbox => {
+                selectedDays.push(checkbox.value);
+            });
+            
+            if (selectedDays.length === 0) {
+                showSnack('Please select at least one day to repeat', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/fitness/add_activity', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        activity_date: formData.get('repeat_start_date'),
+                        activity_type: formData.get('activity_type'),
+                        custom_activity_type: formData.get('custom_activity_type'),
+                        duration: formData.get('duration'),
+                        intensity: formData.get('intensity'),
+                        miles: formData.get('miles'),
+                        repeat_activity: true,
+                        repeat_days: selectedDays,
+                        repeat_start_date: formData.get('repeat_start_date'),
+                        repeat_end_date: formData.get('repeat_end_date')
+                    })
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                    showSnack('Repeat activity created successfully!', 'success');
+                    // Hide form and show button again
+                    addRepeatActivityForm.style.display = 'none';
+                    addNewRepeatActivityBtn.style.display = 'block';
+                    newRepeatActivityForm.reset();
+                    // Refresh the repeat activities list
+                    renderRepeatActivities();
+                } else {
+                    showSnack(result.error || 'Failed to create repeat activity', 'error');
                 }
             } catch (error) {
                 showSnack('Error: ' + error.message, 'error');

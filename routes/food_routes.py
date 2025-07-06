@@ -9,7 +9,8 @@ food_bp = Blueprint('food_bp', __name__)
 
 @food_bp.route('/food')
 def food_page():
-    return render_template('food_enhanced.html')
+    # Redirect to dashboard since we're consolidating to use dashboard food tab
+    return redirect('/dashboard#food')
 
 @food_bp.route('/search')
 def search_food():
@@ -210,31 +211,61 @@ def add_food_entry():
         if not data:
             return jsonify({'error': 'No data provided'}), 400
         
-        # Require calories to be present and > 0
-        if 'calories' not in data or float(data.get('calories', 0)) <= 0:
-            return jsonify({'error': 'Calories are required and must be greater than zero.'}), 400
-        # Optionally require name
-        if not data.get('name'):
-            return jsonify({'error': 'Food name is required.'}), 400
-        
-        # Create food entry
-        food_entry = FoodEntry()
-        food_entry.user_id = current_user.id
-        food_entry.date = datetime.now().date()
-        food_entry.food_name = data.get('name', '')
-        food_entry.calories = int(data.get('calories', 0))
-        food_entry.protein = data.get('protein', 0)
-        food_entry.carbs = data.get('carbs', 0)
-        food_entry.fat = data.get('fat', 0)
-        food_entry.quantity = data.get('quantity', 100)
-        food_entry.unit = 'g'
+        # Handle two different data formats
+        if 'food_id' in data:
+            # Frontend is sending food_id, quantity, serving_size_id, date
+            food_id = data.get('food_id')
+            quantity = float(data.get('quantity', 100))
+            serving_size_id = data.get('serving_size_id')
+            date_str = data.get('date', datetime.now().date().strftime('%Y-%m-%d'))
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            
+            # Get food reference
+            food_ref = FoodReference.query.get(food_id)
+            if not food_ref:
+                return jsonify({'error': 'Food not found'}), 404
+            
+            # Calculate nutrition based on serving size and quantity
+            nutrition = food_ref.get_nutrition_for_serving(serving_size_id, quantity, 'g')
+            
+            # Create food entry
+            food_entry = FoodEntry()
+            food_entry.user_id = current_user.id
+            food_entry.date = date
+            food_entry.food_name = food_ref.food_name
+            food_entry.calories = int(nutrition.get('calories', 0))
+            food_entry.protein = nutrition.get('protein', 0)
+            food_entry.carbs = nutrition.get('carbs', 0)
+            food_entry.fat = nutrition.get('fat', 0)
+            food_entry.quantity = quantity
+            food_entry.unit = 'g'
+            
+        else:
+            # Legacy format: name, calories, protein, carbs, fat, quantity
+            if not data.get('name'):
+                return jsonify({'error': 'Food name is required.'}), 400
+            
+            food_entry = FoodEntry()
+            food_entry.user_id = current_user.id
+            food_entry.date = datetime.now().date()
+            food_entry.food_name = data.get('name', '')
+            food_entry.calories = int(data.get('calories', 0))
+            food_entry.protein = data.get('protein', 0)
+            food_entry.carbs = data.get('carbs', 0)
+            food_entry.fat = data.get('fat', 0)
+            food_entry.quantity = data.get('quantity', 100)
+            food_entry.unit = data.get('unit', 'g')
         
         db.session.add(food_entry)
         db.session.commit()
         
+        # Update TDEE for the date
+        from routes.fitness_routes import update_tdee_for_date
+        update_tdee_for_date(current_user.id, food_entry.date)
+        
         return jsonify({
             'success': True,
-            'message': f'Added {data.get("name")} to your food log'
+            'message': f'Added {food_entry.food_name} to your food log'
         })
         
     except Exception as e:

@@ -1,12 +1,6 @@
-// Helper to get query params
-function getQueryParam(name) {
-    const url = new URL(window.location.href);
-    return url.searchParams.get(name);
-}
-
 const categoryId = getQueryParam('category_id');
 const categoryName = getQueryParam('category_name');
-const exerciseName = getQueryParam('exercise');
+let exerciseName = getQueryParam('exercise');
 
 // Global variables for custom exercise functionality
 let currentCategoryId = null;
@@ -21,30 +15,11 @@ let exerciseId = null; // Will be set after exercise is loaded
 // Audio functionality for PR achievements
 let prAudio = null;
 
-function initAudio() {
-    try {
-        prAudio = new Audio('/static/sounds/pr-achievement.mp3');
-        prAudio.preload = 'auto';
-        console.log('PR audio initialized successfully');
-    } catch (error) {
-        console.error('Failed to initialize PR audio:', error);
-    }
-}
+// Initialize audio using shared utility
+prAudio = initAudio('/static/sounds/pr-achievement.mp3');
 
 function playPRSound(type = 'pr') {
-    if (prAudio) {
-        try {
-            prAudio.currentTime = 0;
-            prAudio.play().catch(error => {
-                console.error('Failed to play PR sound:', error);
-            });
-            console.log('Playing PR sound');
-        } catch (error) {
-            console.error('Error playing PR sound:', error);
-        }
-    } else {
-        console.warn('PR audio not initialized');
-    }
+    playSound(prAudio, type);
 }
 
 function handlePRAchievement(prsAchieved, exerciseName) {
@@ -102,7 +77,7 @@ if (favoriteExerciseBtn) {
     favoriteExerciseBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         if (!exerciseId) {
-            showMessage('Exercise data not loaded yet. Please wait a moment and try again.', 'error');
+            showSnack('Exercise data not loaded yet. Please wait a moment and try again.', 'error');
             return;
         }
         await toggleFavorite();
@@ -113,186 +88,21 @@ if (favoriteExerciseBtn) {
 const step1 = document.getElementById('step-1');
 const step2 = document.getElementById('step-2');
 
-function showStep(step) {
-    if (step === 'category') {
-        modalStepCategory.classList.add('active');
-        modalStepExercise.classList.remove('active');
-        step1.classList.add('active');
-        step2.classList.remove('active');
-    } else if (step === 'exercise') {
-        modalStepCategory.classList.remove('active');
-        modalStepExercise.classList.add('active');
-        step1.classList.remove('active');
-        step2.classList.add('active');
-    }
-}
-
-function resetWorkoutModal() {
-    showStep('category');
-    if (categoryList) categoryList.innerHTML = '';
-    if (exerciseList) exerciseList.innerHTML = '';
-}
-
-async function openWorkoutModalNewFlow() {
-    resetWorkoutModal();
-    if (workoutModal) {
-        workoutModal.classList.add('show');
-        workoutModal.style.display = 'flex';
-    }
-    // Fetch categories
-    try {
-        const resp = await fetch('/fitness/api/exercise_categories');
-        const categories = await resp.json();
-        categoryList.innerHTML = '';
-        categories.forEach(cat => {
-            const btn = document.createElement('button');
-            btn.className = 'btn btn-primary';
-            btn.textContent = cat.name;
-            btn.onclick = () => selectCategory(cat.id, cat.name);
-            categoryList.appendChild(btn);
-        });
-    } catch (err) {
-        categoryList.innerHTML = '<div style="color:red">Failed to load categories</div>';
-    }
-}
-
-async function selectCategory(categoryId, categoryName) {
-    currentCategoryId = categoryId;
-    currentCategoryName = categoryName;
-    showStep('exercise');
-    exerciseList.innerHTML = '<div>Loading...</div>';
-    try {
-        const resp = await fetch(`/fitness/api/exercises/${categoryId}`);
-        const exercises = await resp.json();
-        exerciseList.innerHTML = '';
-        exercises.forEach(ex => {
-            const btn = document.createElement('button');
-            btn.className = 'btn btn-primary';
-            btn.textContent = ex.name;
-            btn.style.minWidth = '160px';
-            if (ex.is_favorite) {
-                btn.classList.add('favorite-exercise');
-                btn.innerHTML = '<span class="star">⭐</span> ' + ex.name;
-            }
-            btn.onclick = () => selectExercise(ex.id, ex.name);
-            exerciseList.appendChild(btn);
-        });
-    } catch (err) {
-        exerciseList.innerHTML = '<div style="color:red">Failed to load exercises</div>';
-    }
-    setupCustomExerciseForm();
-}
-
-function selectExercise(exerciseId, exerciseName) {
-    // Close the modal
-    if (workoutModal) {
-        workoutModal.classList.remove('show');
-        workoutModal.style.display = 'none';
-    }
-    
-    // Redirect to workout entry page with the selected exercise
-    const params = new URLSearchParams({
-        category_id: currentCategoryId,
-        category_name: currentCategoryName,
-        exercise: exerciseName,
-        exercise_id: exerciseId
-    });
-    
-    window.location.href = `/fitness/workout_entry?${params.toString()}`;
-}
-
-// --- Custom Exercise Form Logic ---
-function setupCustomExerciseForm() {
-    const showCustomExerciseFormBtn = document.getElementById('show-custom-exercise-form');
-    const customExerciseForm = document.getElementById('custom-exercise-form');
-    const customExerciseNameInput = document.getElementById('custom-exercise-name');
-
-    if (!showCustomExerciseFormBtn || !customExerciseForm) return;
-
-    // Remove previous listeners to avoid duplicates
-    showCustomExerciseFormBtn.onclick = null;
-    customExerciseForm.onsubmit = null;
-
-    showCustomExerciseFormBtn.onclick = () => {
-        customExerciseForm.style.display = 'block';
-        showCustomExerciseFormBtn.style.display = 'none';
-        if (currentCategoryId) {
-            customExerciseForm.setAttribute('data-category-id', currentCategoryId);
-        }
-    };
-
-    customExerciseForm.onsubmit = async (e) => {
-        e.preventDefault();
-        const name = customExerciseNameInput.value.trim();
-        const category_id = currentCategoryId;
-        if (!name || !category_id) {
-            showMessage('Exercise name is required.', 'error');
-            return;
-        }
-        try {
-            const resp = await fetch('/fitness/api/custom_exercises', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name,
-                    category_id
-                })
-            });
-            const data = await resp.json();
-            if (!resp.ok) {
-                showMessage(data.error || 'Failed to create exercise', 'error');
-                return;
-            }
-            showMessage('Custom exercise created!', 'success');
-            customExerciseForm.reset();
-            customExerciseForm.style.display = 'none';
-            showCustomExerciseFormBtn.style.display = 'inline-block';
-            await selectCategory(currentCategoryId, currentCategoryName);
-        } catch (err) {
-            showMessage('Failed to create exercise', 'error');
-        }
-    };
-}
-
 function setActiveTab(tab) {
     [tabLogNew, tabTrack].forEach(btn => btn.classList.remove('active'));
     tab.classList.add('active');
 }
 
-function showMessage(msg, type = 'success') {
-    let el = document.getElementById('workout-msg');
-    if (!el) {
-        el = document.createElement('div');
-        el.id = 'workout-msg';
-        el.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 16px 24px;
-            border-radius: 12px;
-            font-weight: 600;
-            z-index: 1000;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-            backdrop-filter: blur(10px);
-            max-width: 300px;
-            word-wrap: break-word;
-        `;
-        document.body.appendChild(el);
-    }
-    el.textContent = msg;
-    el.style.background = type === 'success' ? 'rgba(40, 167, 69, 0.9)' : 'rgba(220, 53, 69, 0.9)';
-    el.style.color = 'white';
-    el.style.transform = 'translateX(0)';
-    el.style.transition = 'transform 0.3s ease';
-    
-    setTimeout(() => { 
-        el.style.transform = 'translateX(100%)';
-        setTimeout(() => { el.remove(); }, 300);
-    }, 3000);
-}
+// Using showSnack from utils.js instead of custom showMessage
 
 async function loadSetsTable() {
     setsTableBody.innerHTML = '';
+    if (!exerciseName) {
+        setsTableBody.innerHTML = `<tr><td colspan="5" style="color:#888; text-align:center;">Please select an exercise to view or log sets.</td></tr>`;
+        const setsCount = document.getElementById('sets-count');
+        if (setsCount) setsCount.textContent = '0 sets';
+        return;
+    }
     const today = new Date().toISOString().split('T')[0];
     try {
         const resp = await fetch(`/fitness/api/workouts_by_date?date=${today}`);
@@ -370,7 +180,7 @@ async function loadSetsTable() {
         // Note: Default values are now set by loadLastWorkoutDefaults() function
     } catch (err) {
         console.error('Error loading sets:', err); // Debug log
-        showMessage('Failed to load sets', 'error');
+        showSnack('Failed to load sets', 'error');
     }
 }
 
@@ -403,72 +213,14 @@ async function editSet(workoutId, currentWeight, currentReps) {
                 handlePRAchievement(result.prs_updated, result.exercise);
             }
             
-            showMessage(message);
+            showSnack(message, 'success');
             loadSetsTable();
             loadPersonalRecords();
         } else {
-            showMessage(result.error || 'Failed to update set', 'error');
+            showSnack(result.error || 'Failed to update set', 'error');
         }
     } catch (err) {
-        showMessage('Error updating set', 'error');
-    }
-}
-
-async function deleteSet(workoutId) {
-    if (!confirm('Are you sure you want to delete this set? This action cannot be undone.')) {
-        return;
-    }
-    
-    try {
-        const resp = await fetch(`/fitness/delete_workout/${workoutId}`, {
-            method: 'DELETE'
-        });
-        
-        const result = await resp.json();
-        if (resp.ok) {
-            showMessage('Set deleted successfully!');
-            loadSetsTable();
-            loadPersonalRecords();
-        } else {
-            showMessage(result.error || 'Failed to delete set', 'error');
-        }
-    } catch (err) {
-        showMessage('Error deleting set', 'error');
-    }
-}
-
-async function loadPersonalRecords() {
-    try {
-        const resp = await fetch(`/fitness/api/personal_records/${encodeURIComponent(exerciseName)}`);
-        const prs = await resp.json();
-        
-        // Reset PR display
-        document.getElementById('pr-highest-weight').textContent = '-';
-        
-        // Find the highest weight PR
-        let highestWeight = 0;
-        let highestWeightReps = 0;
-        
-        prs.forEach(pr => {
-            if (pr.pr_type === 'weight' && pr.value > highestWeight) {
-                highestWeight = pr.value;
-                // Try to find the reps for this weight
-                const weightPr = prs.find(p => p.pr_type === 'reps' && p.weight === pr.value);
-                highestWeightReps = weightPr ? weightPr.value : 0;
-            }
-        });
-        
-        // Update PR display
-        if (highestWeight > 0) {
-            const displayText = highestWeightReps > 0 
-                ? `${highestWeight} lbs (${highestWeightReps} reps)`
-                : `${highestWeight} lbs`;
-            document.getElementById('pr-highest-weight').textContent = displayText;
-        } else {
-            document.getElementById('pr-highest-weight').textContent = 'No PR yet';
-        }
-    } catch (err) {
-        console.error('Failed to load personal records:', err);
+        showSnack('Error updating set', 'error');
     }
 }
 
@@ -506,7 +258,7 @@ if (logSetForm) {
                     handlePRAchievement(result.prs_achieved, result.exercise);
                 }
                 
-                showMessage(message);
+                showSnack(message, 'success');
                 // Reset form but keep the weight and reps values
                 logSetForm.reset();
                 weightInput.value = currentWeight;
@@ -514,10 +266,10 @@ if (logSetForm) {
                 loadSetsTable();
                 loadPersonalRecords();
             } else {
-                showMessage(result.error || 'Failed to add set', 'error');
+                showSnack(result.error || 'Failed to add set', 'error');
             }
         } catch (err) {
-            showMessage('Error adding set', 'error');
+            showSnack('Error adding set', 'error');
         }
     });
 }
@@ -650,57 +402,6 @@ if (workoutModal) {
     });
 }
 
-// Check if this is a barbell exercise
-async function checkIfBarbellExercise() {
-    try {
-        // Fetch all exercises for the category
-        const response = await fetch(`/fitness/api/exercises/${categoryId}`);
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('API Error:', response.status, errorText);
-            throw new Error(`Failed to fetch exercise data: ${response.status} - ${errorText}`);
-        }
-        
-        const exercises = await response.json();
-        // Find the specific exercise by name
-        const exercise = exercises.find(ex => ex.name === exerciseName);
-        
-        if (!exercise) {
-            console.error(`Exercise "${exerciseName}" not found in category ${categoryId}`);
-            showMessage(`Exercise "${exerciseName}" not found. Please try selecting it again from the exercise list.`, 'error');
-            // Set default values to prevent further errors
-            isBarbellExercise = false;
-            exerciseEquipment = null;
-            exerciseId = null;
-            return;
-        }
-        
-        isBarbellExercise = exercise.equipment && exercise.equipment.toLowerCase() === 'barbell';
-        exerciseEquipment = exercise.equipment;
-        exerciseId = exercise.id;
-        
-        console.log('Exercise loaded:', {
-            name: exercise.name,
-            id: exercise.id,
-            equipment: exercise.equipment,
-            isBarbell: isBarbellExercise
-        });
-        
-        updateTotalWeight();
-        updateFavoriteButton();
-    } catch (error) {
-        console.error('Error checking exercise equipment:', error);
-        // Show user-friendly error message
-        showMessage(`Failed to load exercise data: ${error.message}`, 'error');
-        
-        // Set default values to prevent further errors
-        isBarbellExercise = false;
-        exerciseEquipment = null;
-        exerciseId = null;
-    }
-}
-
 // Favorite exercise functionality
 
 async function isExerciseFavorite() {
@@ -778,57 +479,6 @@ function updateFavoriteButton() {
     });
 }
 
-async function toggleFavorite() {
-    if (!exerciseId) {
-        showMessage('Exercise ID not found', 'error');
-        return;
-    }
-    
-    // Prevent multiple rapid clicks
-    if (favoriteExerciseBtn.disabled) {
-        return;
-    }
-    
-    try {
-        // Show loading state
-        favoriteExerciseBtn.disabled = true;
-        favoriteExerciseBtn.style.opacity = '0.6';
-        favoriteExerciseBtn.title = 'Updating...';
-        
-        // Get current favorite status
-        const isCurrentlyFavorite = await isExerciseFavorite();
-        
-        // Make the API call to toggle the favorite status
-        const response = await fetch(`/fitness/api/exercise/${exerciseId}/favorite`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({})
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || 'Failed to update favorite status');
-        }
-        
-        // Update UI
-        updateFavoriteButton();
-        
-        // Show appropriate success message based on current state
-        const message = await response.json();
-        showMessage(message.message || (isCurrentlyFavorite ? 'Exercise removed from favorites' : 'Exercise added to favorites'), 'success');
-    } catch (error) {
-        console.error('Error toggling favorite:', error);
-        showMessage(error.message || 'Failed to toggle favorite status', 'error');
-        
-        // Reset button state on error
-        favoriteExerciseBtn.disabled = false;
-        favoriteExerciseBtn.style.opacity = '1';
-        favoriteExerciseBtn.title = 'Error occurred';
-    }
-}
-
 // Update total weight display
 function updateTotalWeight() {
     const weightInput = document.getElementById('weight');
@@ -899,7 +549,7 @@ async function initializePage() {
         const exerciseName = urlParams.get('exercise');
         
         if (!exerciseName) {
-            showMessage('Exercise not found', 'error');
+            showSnack('Exercise not found', 'error');
             return;
         }
         
@@ -914,7 +564,7 @@ async function initializePage() {
         
     } catch (error) {
         console.error('Error initializing page:', error);
-        showMessage('Error loading exercise', 'error');
+        showSnack('Error loading exercise', 'error');
     }
 }
 
@@ -956,7 +606,7 @@ async function loadLastWorkoutDefaults() {
             
             // Show a subtle message that defaults were loaded
             const date = new Date(lastWorkout.date).toLocaleDateString();
-            showMessage(`Loaded from last workout (${date}): ${lastWorkout.weight} lbs × ${lastWorkout.reps} reps`, 'success');
+            showSnack(`Loaded from last workout (${date}): ${lastWorkout.weight} lbs × ${lastWorkout.reps} reps`, 'success');
         } else {
             console.log('No previous workouts found for this exercise');
         }
@@ -965,137 +615,452 @@ async function loadLastWorkoutDefaults() {
     }
 }
 
-// Rest Timer Functionality
-let restTimerInterval = null;
-let restTimerStartTime = null;
-let restTimerElapsedTime = 0; // in seconds
-let restTimerState = 'stopped'; // 'stopped', 'running', 'paused'
-
-// DOM elements for timer
+// Rest Timer Functionality - Using shared timerManager
 const restTimerDisplay = document.getElementById('rest-timer-display');
 const startTimerBtn = document.getElementById('start-timer');
 const pauseTimerBtn = document.getElementById('pause-timer');
 const resetTimerBtn = document.getElementById('reset-timer');
 
-function formatTime(seconds) {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-}
+// --- Rest Timer State ---
+let restDuration = 60; // default rest duration in seconds
+let restTimeLeft = restDuration;
+let restIntervalActive = false;
 
-function updateTimerDisplay() {
+function updateRestTimerDisplay() {
     if (restTimerDisplay) {
-        restTimerDisplay.textContent = formatTime(restTimerElapsedTime);
-        
-        // Update display class based on state
-        restTimerDisplay.className = 'timer-display';
-        if (restTimerState === 'running') {
-            restTimerDisplay.classList.add('running');
-        } else if (restTimerState === 'paused') {
-            restTimerDisplay.classList.add('paused');
-        }
+        restTimerDisplay.textContent = formatTime(restTimeLeft);
     }
 }
 
 function startRestTimer() {
-    if (restTimerState === 'stopped') {
-        // Starting from zero
-        restTimerElapsedTime = 0;
-        restTimerStartTime = Date.now();
-    } else if (restTimerState === 'paused') {
-        // Resuming from pause
-        restTimerStartTime = Date.now() - (restTimerElapsedTime * 1000);
-    }
-    
-    restTimerState = 'running';
-    
-    // Clear any existing interval
-    if (restTimerInterval) {
-        clearInterval(restTimerInterval);
-    }
-    
-    // Start the timer interval
-    restTimerInterval = setInterval(() => {
-        restTimerElapsedTime = Math.floor((Date.now() - restTimerStartTime) / 1000);
-        updateTimerDisplay();
+    if (restIntervalActive) return; // Prevent multiple intervals
+    restIntervalActive = true;
+    timerManager.setInterval('rest-timer-tick', () => {
+        if (restTimeLeft > 0) {
+            restTimeLeft--;
+            updateRestTimerDisplay();
+            if (restTimeLeft === 0) {
+                showSnack('⏰ Rest timer completed!', 'success');
+                pauseRestTimer();
+            }
+        }
     }, 1000);
-    
-    // Update button states
-    updateTimerButtons();
-    updateTimerDisplay();
 }
 
 function pauseRestTimer() {
-    if (restTimerState === 'running') {
-        restTimerState = 'paused';
-        
-        if (restTimerInterval) {
-            clearInterval(restTimerInterval);
-            restTimerInterval = null;
-        }
-        
-        updateTimerButtons();
-        updateTimerDisplay();
-    }
+    restIntervalActive = false;
+    timerManager.clearInterval('rest-timer-tick');
 }
 
 function resetRestTimer() {
-    restTimerState = 'stopped';
-    restTimerElapsedTime = 0;
-    restTimerStartTime = null;
-    
-    if (restTimerInterval) {
-        clearInterval(restTimerInterval);
-        restTimerInterval = null;
-    }
-    
-    updateTimerButtons();
-    updateTimerDisplay();
+    pauseRestTimer();
+    restTimeLeft = restDuration;
+    updateRestTimerDisplay();
 }
 
-function updateTimerButtons() {
-    if (startTimerBtn && pauseTimerBtn && resetTimerBtn) {
-        if (restTimerState === 'stopped') {
-            startTimerBtn.disabled = false;
-            pauseTimerBtn.disabled = true;
-            resetTimerBtn.disabled = false;
-            startTimerBtn.innerHTML = `
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="5,3 19,12 5,21"/>
-                </svg>
-                Start
-            `;
-        } else if (restTimerState === 'running') {
-            startTimerBtn.disabled = true;
-            pauseTimerBtn.disabled = false;
-            resetTimerBtn.disabled = false;
-        } else if (restTimerState === 'paused') {
-            startTimerBtn.disabled = false;
-            pauseTimerBtn.disabled = true;
-            resetTimerBtn.disabled = false;
-            startTimerBtn.innerHTML = `
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="5,3 19,12 5,21"/>
-                </svg>
-                Resume
-            `;
-        }
-    }
-}
-
-// Event listeners for timer buttons
 if (startTimerBtn) {
     startTimerBtn.addEventListener('click', startRestTimer);
 }
-
 if (pauseTimerBtn) {
     pauseTimerBtn.addEventListener('click', pauseRestTimer);
 }
-
 if (resetTimerBtn) {
     resetTimerBtn.addEventListener('click', resetRestTimer);
 }
 
-// Initialize timer display and buttons
-updateTimerDisplay();
-updateTimerButtons();
+// Initialize timer display
+updateRestTimerDisplay();
+
+// --- SESSION MODE LOGIC ---
+const SESSION_MODE = typeof window.SESSION_MODE !== 'undefined' ? window.SESSION_MODE : false;
+const SESSION_ID = typeof window.SESSION_ID !== 'undefined' ? window.SESSION_ID : null;
+const TEMPLATE_ID = typeof window.TEMPLATE_ID !== 'undefined' ? window.TEMPLATE_ID : null;
+
+// Session state variables
+let currentSession = null;
+let currentExerciseIndex = 0;
+let currentExercise = null;
+let exerciseSets = [];
+
+if (SESSION_MODE && SESSION_ID) {
+    // Hide manual entry UI
+    document.querySelector('.workout-container').style.display = 'none';
+    // Show session UI
+    document.getElementById('session-ui').style.display = 'block';
+    // Load and render session
+    loadAndRenderSession(SESSION_ID);
+}
+
+async function loadAndRenderSession(sessionId) {
+    try {
+        const resp = await fetch(`/fitness/api/workout_sessions/${sessionId}`);
+        if (!resp.ok) throw new Error('Failed to load session');
+        
+        const session = await resp.json();
+        console.log('Loaded session data:', session);
+        
+        if (!session.exercises || session.exercises.length === 0) {
+            console.error('Session has no exercises');
+            showSnack('Session has no exercises. Please check your template.', 'error');
+            return;
+        }
+        
+        currentSession = session;
+        renderSessionUI(session);
+        setupSessionEventListeners();
+        
+        // Load the first exercise
+        await loadCurrentExercise();
+        
+    } catch (err) {
+        console.error('Error loading session:', err);
+        showSnack('Error loading session: ' + err.message, 'error');
+    }
+}
+
+function renderSessionUI(session) {
+    const container = document.getElementById('session-ui');
+
+    // Defensive check for exercises
+    if (!Array.isArray(session.exercises) || session.exercises.length === 0) {
+        container.innerHTML = `<div style='color:red; padding:1em;'>No exercises found for this session. Please check your workout template or contact support.</div>`;
+        return;
+    }
+
+    let html = `
+        <div class='workout-session-container'>
+            <div class='session-header'>
+                <div class='session-title'>${session.name}</div>
+                <div class='session-info'>Date: ${session.date} | Status: ${session.status}</div>
+            </div>
+            
+            <div class='exercise-progress'>
+                <div class='progress-bar'>
+                    <div class='progress-fill' style='width: ${(currentExerciseIndex / session.exercises.length) * 100}%'></div>
+                </div>
+                <div class='progress-text'>Exercise ${currentExerciseIndex + 1} of ${session.exercises.length}</div>
+            </div>
+            
+            <div class='exercise-navigation'>
+                <button id='prev-exercise' class='btn btn-secondary' ${currentExerciseIndex === 0 ? 'disabled' : ''}>
+                    ← Previous
+                </button>
+                <button id='next-exercise' class='btn btn-secondary' ${currentExerciseIndex === session.exercises.length - 1 ? 'disabled' : ''}>
+                    Next →
+                </button>
+            </div>
+            
+            <div id='current-exercise-display'></div>
+            
+            <div id='set-logging-section' style='display: none;'>
+                <div class='set-logging-header'>
+                    <h3>Log Sets for <span id='current-exercise-name'></span></h3>
+                </div>
+                
+                <div class='set-logging-form'>
+                    <div class='form-group'>
+                        <label for='session-weight'>Weight (lbs)</label>
+                        <div class='input-group'>
+                            <button type='button' id='session-weight-minus' class='btn btn-sm'>-</button>
+                            <input type='number' id='session-weight' class='form-control' min='0' step='0.5'>
+                            <button type='button' id='session-weight-plus' class='btn btn-sm'>+</button>
+                        </div>
+                    </div>
+                    
+                    <div class='form-group'>
+                        <label for='session-reps'>Reps</label>
+                        <div class='input-group'>
+                            <button type='button' id='session-reps-minus' class='btn btn-sm'>-</button>
+                            <input type='number' id='session-reps' class='form-control' min='1' max='100'>
+                            <button type='button' id='session-reps-plus' class='btn btn-sm'>+</button>
+                        </div>
+                    </div>
+                    
+                    <button id='log-set-btn' class='btn btn-primary'>Log Set</button>
+                </div>
+                
+                <div id='session-sets-table'>
+                    <table class='table'>
+                        <thead>
+                            <tr>
+                                <th>Set</th>
+                                <th>Weight</th>
+                                <th>Reps</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id='session-sets-tbody'></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class='session-actions'>
+                <button id='complete-workout-btn' class='btn btn-success' style='display: none;'>
+                    Complete Workout
+                </button>
+                <button id='cancel-workout-btn' class='btn btn-danger'>
+                    Cancel Workout
+                </button>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Add event listeners
+    setupSessionEventListeners();
+    
+    // Load first exercise
+    if (session.exercises.length > 0) {
+        loadCurrentExercise();
+    }
+}
+
+function setupSessionEventListeners() {
+    // Navigation buttons
+    document.getElementById('prev-exercise').addEventListener('click', () => {
+        if (currentExerciseIndex > 0) {
+            currentExerciseIndex--;
+            loadCurrentExercise();
+        }
+    });
+    
+    document.getElementById('next-exercise').addEventListener('click', () => {
+        if (currentExerciseIndex < currentSession.exercises.length - 1) {
+            currentExerciseIndex++;
+            loadCurrentExercise();
+        }
+    });
+    
+    // Set logging form
+    const weightInput = document.getElementById('session-weight');
+    const repsInput = document.getElementById('session-reps');
+    const weightMinus = document.getElementById('session-weight-minus');
+    const weightPlus = document.getElementById('session-weight-plus');
+    const repsMinus = document.getElementById('session-reps-minus');
+    const repsPlus = document.getElementById('session-reps-plus');
+    const logSetBtn = document.getElementById('log-set-btn');
+    
+    // Plus/minus buttons
+    weightMinus.addEventListener('click', () => {
+        weightInput.value = Math.max(0, parseInt(weightInput.value || 0) - 5);
+    });
+    weightPlus.addEventListener('click', () => {
+        weightInput.value = parseInt(weightInput.value || 0) + 5;
+    });
+    repsMinus.addEventListener('click', () => {
+        repsInput.value = Math.max(1, parseInt(repsInput.value || 0) - 1);
+    });
+    repsPlus.addEventListener('click', () => {
+        repsInput.value = parseInt(repsInput.value || 0) + 1;
+    });
+    
+    // Log set button
+    logSetBtn.addEventListener('click', logSetForSession);
+    
+    // Complete workout button
+    document.getElementById('complete-workout-btn').addEventListener('click', completeWorkout);
+    
+    // Cancel workout button
+    document.getElementById('cancel-workout-btn').addEventListener('click', () => {
+        if (confirm('Are you sure you want to cancel this workout? All logged sets will be lost.')) {
+            window.location.href = '/';
+        }
+    });
+}
+
+async function loadCurrentExercise() {
+    if (!currentSession || currentExerciseIndex >= currentSession.exercises.length) {
+        return;
+    }
+    
+    currentExercise = currentSession.exercises[currentExerciseIndex];
+    console.log('Loading current exercise:', currentExercise);
+    
+    // Set global exerciseName for session mode
+    exerciseName = currentExercise.exercise_name;
+    
+    // Update exercise display
+    const exerciseDisplay = document.getElementById('current-exercise-display');
+    const exerciseNameSpan = document.getElementById('current-exercise-name');
+    
+    exerciseDisplay.innerHTML = `
+        <div class='current-exercise'>
+            <h2>${currentExercise.exercise_name}</h2>
+            <p class='exercise-order'>Exercise ${currentExerciseIndex + 1} of ${currentSession.exercises.length}</p>
+        </div>
+    `;
+    
+    if (exerciseNameSpan) {
+        exerciseNameSpan.textContent = currentExercise.exercise_name;
+    }
+    
+    // Show set logging section
+    const setLoggingSection = document.getElementById('set-logging-section');
+    if (setLoggingSection) setLoggingSection.style.display = 'block';
+    
+    // Update navigation buttons
+    document.getElementById('prev-exercise').disabled = currentExerciseIndex === 0;
+    document.getElementById('next-exercise').disabled = currentExerciseIndex === currentSession.exercises.length - 1;
+    
+    // Update progress bar
+    const progressFill = document.querySelector('.progress-fill');
+    const progressText = document.querySelector('.progress-text');
+    
+    if (currentExerciseIndex === currentSession.exercises.length - 1) {
+        // Last exercise - show complete button
+        document.getElementById('complete-workout-btn').style.display = 'block';
+    } else {
+        document.getElementById('complete-workout-btn').style.display = 'none';
+    }
+    
+    if (progressFill) {
+        progressFill.style.width = `${(currentExerciseIndex / currentSession.exercises.length) * 100}%`;
+    }
+    if (progressText) {
+        progressText.textContent = `Exercise ${currentExerciseIndex + 1} of ${currentSession.exercises.length}`;
+    }
+    
+    // Load sets for this exercise
+    await loadExerciseSets();
+}
+
+async function loadExerciseSets() {
+    try {
+        const resp = await fetch(`/fitness/api/exercise_sets?exercise_id=${currentExercise.id}&session_id=${SESSION_ID}`);
+        if (!resp.ok) throw new Error('Failed to load sets');
+        exerciseSets = await resp.json();
+        renderExerciseSets();
+    } catch (err) {
+        console.error('Error loading exercise sets:', err);
+        exerciseSets = [];
+        renderExerciseSets();
+    }
+}
+
+function renderExerciseSets() {
+    const tbody = document.getElementById('session-sets-tbody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    exerciseSets.forEach((set, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${set.weight} lbs</td>
+            <td>${set.reps}</td>
+            <td>
+                <button class='btn btn-sm btn-danger' onclick='deleteSessionSet(${set.id})'>Delete</button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+async function logSetForSession() {
+    const weightInput = document.getElementById('session-weight');
+    const repsInput = document.getElementById('session-reps');
+    
+    const weight = parseFloat(weightInput.value);
+    const reps = parseInt(repsInput.value);
+    
+    if (!weight || !reps) {
+        showSnack('Please enter both weight and reps', 'error');
+        return;
+    }
+    
+    // Check if currentExercise is available
+    if (!currentExercise) {
+        console.error('currentExercise is not set');
+        showSnack('No exercise selected. Please refresh the page.', 'error');
+        return;
+    }
+    
+    const payload = {
+        session_id: SESSION_ID,
+        exercise_id: currentExercise.id,
+        category_id: currentExercise.category_id || '',
+        exercise: currentExercise.exercise_name,
+        weight: weight,
+        reps: reps
+    };
+    console.log('Logging set payload:', payload); // DEBUG LOG
+    
+    try {
+        const resp = await fetch('/fitness/api/log_set', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!resp.ok) {
+            const error = await resp.json();
+            throw new Error(error.error || 'Failed to log set');
+        }
+        
+        // Clear form
+        weightInput.value = '';
+        repsInput.value = '';
+        
+        // Reload sets
+        await loadExerciseSets();
+        
+        showSnack('Set logged successfully!', 'success');
+        
+    } catch (err) {
+        console.error('Error logging set:', err);
+        showSnack('Error logging set: ' + err.message, 'error');
+    }
+}
+
+async function deleteSessionSet(setId) {
+    if (!confirm('Are you sure you want to delete this set?')) {
+        return;
+    }
+    
+    try {
+        const resp = await fetch(`/fitness/api/sets/${setId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!resp.ok) throw new Error('Failed to delete set');
+        
+        await loadExerciseSets();
+        showSnack('Set deleted successfully!', 'success');
+        
+    } catch (err) {
+        console.error('Error deleting set:', err);
+        showSnack('Error deleting set', 'error');
+    }
+}
+
+async function completeWorkout() {
+    if (!confirm('Are you sure you want to complete this workout?')) {
+        return;
+    }
+    
+    try {
+        const resp = await fetch(`/fitness/api/workout_sessions/${SESSION_ID}/complete`, {
+            method: 'PUT'
+        });
+        
+        if (!resp.ok) throw new Error('Failed to complete workout');
+        
+        showSnack('Workout completed successfully!', 'success');
+        
+        // Redirect back to dashboard
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 1500);
+        
+    } catch (err) {
+        console.error('Error completing workout:', err);
+        showSnack('Error completing workout', 'error');
+    }
+}
+
+// Make deleteSessionSet available globally
+window.deleteSessionSet = deleteSessionSet;

@@ -1,4 +1,4 @@
-import { exportedLoadTrades as loadTrades, exportedLoadPnL as loadPnL, editTrade, deleteTrade } from './trading.js';
+// Functions are now available globally from utility files
 
 document.addEventListener('DOMContentLoaded', () => {
     const tradeModal = document.getElementById('tradeModal');

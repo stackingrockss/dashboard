@@ -2,118 +2,16 @@
 // (Moved from fitness.js and workout_entry.js)
 // This file now includes all workout entry logic as well.
 
-// Simple notification function (replaces showSnack)
-function showSnack(message, type = 'info') {
-    console.log(`${type.toUpperCase()}: ${message}`);
-    // You can replace this with a more sophisticated notification system if needed
-    alert(message);
+// Functions are now available globally from utility files
+
+// Initialize workout utilities
+if (typeof initWorkoutUtils !== 'undefined') {
+    initWorkoutUtils();
 }
 
-// Simple message function (replaces showMessage)
-function showMessage(message, type = 'info') {
-    console.log(`${type.toUpperCase()}: ${message}`);
-    alert(message);
-}
+// Using checkIfBarbellExercise from workout-utils.js
 
-// Check if exercise is a barbell exercise
-async function checkIfBarbellExercise() {
-    console.log('checkIfBarbellExercise called with:', { categoryId, exerciseName });
-    if (!categoryId || !exerciseName) {
-        console.log('Missing categoryId or exerciseName, returning early');
-        return;
-    }
-    
-    try {
-        console.log('Fetching exercises for category:', categoryId);
-        const response = await fetch(`/fitness/api/exercises/${categoryId}`);
-        const exercises = await response.json();
-        console.log('Exercises received:', exercises);
-        
-        const exercise = exercises.find(ex => ex.name === exerciseName);
-        console.log('Found exercise:', exercise);
-        
-        if (exercise) {
-            exerciseId = exercise.id;
-            exerciseEquipment = exercise.equipment;
-            isBarbellExercise = exerciseEquipment && exerciseEquipment.toLowerCase() === 'barbell';
-            
-            console.log('Exercise details:', {
-                exerciseId,
-                exerciseEquipment,
-                isBarbellExercise
-            });
-            
-            // Update total weight display for barbell exercises
-            const totalWeightDisplay = document.getElementById('total-weight-display');
-            const totalWeightHeader = document.getElementById('total-weight-header');
-            const historyTotalWeightHeader = document.getElementById('history-total-weight-header');
-            
-            console.log('DOM elements found:', {
-                totalWeightDisplay: !!totalWeightDisplay,
-                totalWeightHeader: !!totalWeightHeader,
-                historyTotalWeightHeader: !!historyTotalWeightHeader
-            });
-            
-            if (isBarbellExercise) {
-                console.log('Setting barbell exercise display to visible');
-                if (totalWeightDisplay) totalWeightDisplay.style.display = 'block';
-                if (totalWeightHeader) totalWeightHeader.style.display = 'table-cell';
-                if (historyTotalWeightHeader) historyTotalWeightHeader.style.display = 'table-cell';
-            } else {
-                console.log('Setting barbell exercise display to hidden');
-                if (totalWeightDisplay) totalWeightDisplay.style.display = 'none';
-                if (totalWeightHeader) totalWeightHeader.style.display = 'none';
-                if (historyTotalWeightHeader) historyTotalWeightHeader.style.display = 'none';
-            }
-            
-            // Update favorite button status
-            updateFavoriteButtonStatus();
-            
-            // Load personal records for this exercise
-            loadPersonalRecords();
-        } else {
-            console.log('Exercise not found in list');
-        }
-    } catch (error) {
-        console.error('Error checking barbell exercise:', error);
-    }
-}
-
-// Load personal records for the current exercise
-async function loadPersonalRecords() {
-    if (!exerciseName) return;
-    
-    try {
-        const response = await fetch(`/fitness/api/personal_records/${encodeURIComponent(exerciseName)}`);
-        if (response.ok) {
-            const prs = await response.json();
-            
-            // Find the highest weight PR
-            const weightPR = prs.find(pr => pr.pr_type === 'weight');
-            const repsPR = prs.find(pr => pr.pr_type === 'reps');
-            
-            // Update the PR display
-            const prHighestWeight = document.getElementById('pr-highest-weight');
-            if (prHighestWeight) {
-                if (weightPR) {
-                    prHighestWeight.textContent = `${weightPR.value} lbs`;
-                    prHighestWeight.style.color = '#28a745';
-                } else {
-                    prHighestWeight.textContent = 'No PR yet';
-                    prHighestWeight.style.color = '#6c757d';
-                }
-            }
-            
-            // Store PRs for comparison
-            window.currentPRs = {
-                weight: weightPR ? weightPR.value : 0,
-                reps: repsPR ? repsPR.value : 0
-            };
-        }
-    } catch (error) {
-        console.error('Error loading personal records:', error);
-    }
-}
+// Using loadPersonalRecords from workout-utils.js
 
 // Save last inputs for the current exercise
 function saveLastInputs(weight, reps) {
@@ -178,7 +76,7 @@ function loadLastInputs() {
                 }
                 
                 console.log('Loaded last inputs:', lastInputs);
-                showMessage(`Loaded last inputs: ${lastInputs.weight} lbs × ${lastInputs.reps} reps`, 'info');
+                showSnack(`Loaded last inputs: ${lastInputs.weight} lbs × ${lastInputs.reps} reps`, 'info');
             } else {
                 // Clear old data
                 console.log('Clearing old data (older than 30 days)');
@@ -206,65 +104,9 @@ function clearLastInputs() {
     }
 }
 
-// Toggle favorite status
-async function toggleFavorite() {
-    if (!exerciseId) return;
-    
-    try {
-        const response = await fetch(`/fitness/api/exercise/${exerciseId}/favorite`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
-        
-        if (response.ok) {
-            const result = await response.json();
-            updateFavoriteButtonStatus(result.is_favorite);
-            showMessage(result.message, 'success');
-        } else {
-            const error = await response.json();
-            showMessage(error.error || 'Failed to toggle favorite', 'error');
-        }
-    } catch (error) {
-        console.error('Error toggling favorite:', error);
-        showMessage('Error toggling favorite', 'error');
-    }
-}
+// Using toggleFavorite from workout-utils.js
 
-// Update favorite button visual status
-async function updateFavoriteButtonStatus(isFavorite = null) {
-    if (!favoriteExerciseBtn || !exerciseId) return;
-    
-    if (isFavorite === null) {
-        // Check current favorite status from server
-        try {
-            const response = await fetch(`/fitness/api/exercises/${categoryId}`);
-            const exercises = await response.json();
-            const exercise = exercises.find(ex => ex.name === exerciseName);
-            if (exercise) {
-                isFavorite = exercise.is_favorite;
-            }
-        } catch (error) {
-            console.error('Error checking favorite status:', error);
-            isFavorite = false;
-        }
-    }
-    
-    favoriteExerciseBtn.classList.toggle('favorite', isFavorite);
-    
-    // Update the star icon
-    const starIcon = favoriteExerciseBtn.querySelector('svg');
-    if (starIcon) {
-        if (isFavorite) {
-            starIcon.style.fill = '#ffd700';
-            starIcon.style.stroke = '#ffd700';
-        } else {
-            starIcon.style.fill = 'none';
-            starIcon.style.stroke = 'currentColor';
-        }
-    }
-}
+// Using updateFavoriteButtonStatus from workout-utils.js
 
 // Setup all event listeners for workout entry page
 function setupWorkoutEntryEventListeners() {
@@ -301,8 +143,10 @@ function setupWorkoutEntryEventListeners() {
     if (tabLogNew) tabLogNew.addEventListener('click', () => switchTab('log-new'));
     
     // Load initial data
-    loadTodaysSets();
-    loadExerciseHistory();
+    if (exerciseName) {
+        loadTodaysSets(exerciseName);
+        loadExerciseHistory(exerciseName);
+    }
 }
 
 // Handle logging a new set
@@ -314,7 +158,7 @@ async function handleLogSet(e) {
     const reps = parseInt(formData.get('reps'));
     
     if (!weight || !reps) {
-        showMessage('Please enter both weight and reps', 'error');
+        showSnack('Please enter both weight and reps', 'error');
         return;
     }
     
@@ -380,18 +224,20 @@ async function handleLogSet(e) {
                 handlePRAchievement(prTypes, exerciseName);
             } else {
                 console.log('No new PR achieved, showing regular success message');
-                showMessage('Set logged successfully!', 'success');
+                showSnack('Set logged successfully!', 'success');
             }
             
             // Reload personal records to update the display
-            loadPersonalRecords();
+            if (exerciseName) {
+                loadPersonalRecords(exerciseName);
+            }
         } else {
             const error = await response.json();
-            showMessage(error.error || 'Failed to log set', 'error');
+            showSnack(error.error || 'Failed to log set', 'error');
         }
     } catch (error) {
         console.error('Error logging set:', error);
-        showMessage('Error logging set', 'error');
+        showSnack('Error logging set', 'error');
     }
 }
 
@@ -436,57 +282,9 @@ function updateSetsCount() {
     }
 }
 
-// Load today's sets
-async function loadTodaysSets() {
-    if (!setsTableBody) return;
-    try {
-        const response = await fetch(`/fitness/api/todays_sets?exercise=${encodeURIComponent(exerciseName)}`);
-        if (response.ok) {
-            const sets = await response.json();
-            console.log('API /fitness/api/todays_sets response:', sets); // Debug log
-            setsTableBody.innerHTML = '';
-            sets.forEach(set => {
-                addSetToTable(set);
-            });
-            updateSetsCount();
-        }
-    } catch (error) {
-        console.error('Error loading today\'s sets:', error);
-    }
-}
+// Using loadTodaysSets from workout-utils.js
 
-// Load exercise history
-async function loadExerciseHistory() {
-    if (!historyTableBody) return;
-    
-    try {
-        const response = await fetch(`/fitness/api/exercise_history?exercise=${encodeURIComponent(exerciseName)}`);
-        if (response.ok) {
-            const history = await response.json();
-            historyTableBody.innerHTML = '';
-            
-            history.forEach(entry => {
-                const row = document.createElement('tr');
-                let totalWeightCell = '';
-                if (isBarbellExercise) {
-                    const totalWeight = entry.weight + STANDARD_BARBELL_WEIGHT;
-                    totalWeightCell = `<td>${totalWeight}</td>`;
-                }
-                
-                row.innerHTML = `
-                    <td>${new Date(entry.date).toLocaleDateString()}</td>
-                    <td>${entry.set_number}</td>
-                    <td>${entry.weight}</td>
-                    ${totalWeightCell}
-                    <td>${entry.reps}</td>
-                `;
-                historyTableBody.appendChild(row);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading exercise history:', error);
-    }
-}
+// Using loadExerciseHistory from workout-utils.js
 
 // Switch between tabs
 function switchTab(tabName) {
@@ -536,27 +334,7 @@ function updateTotalWeightDisplay(userWeight) {
     }
 }
 
-// Delete a set
-async function deleteSet(setId) {
-    if (!confirm('Are you sure you want to delete this set?')) return;
-    
-    try {
-        const response = await fetch(`/fitness/api/sets/${setId}`, {
-            method: 'DELETE'
-        });
-        
-        if (response.ok) {
-            // Reload today's sets
-            loadTodaysSets();
-            showMessage('Set deleted successfully!', 'success');
-        } else {
-            showMessage('Failed to delete set', 'error');
-        }
-    } catch (error) {
-        console.error('Error deleting set:', error);
-        showMessage('Error deleting set', 'error');
-    }
-}
+// Using deleteSet from workout-utils.js
 
 // Place all workout/exercise/template logic here, including:
 // - Workout logging (forms, event listeners)
@@ -574,19 +352,15 @@ async function deleteSet(setId) {
 // export { loadTodaysWorkout, loadFullWorkoutHistory, ... }; 
 
 // --- Begin workout_entry.js logic ---
-// Helper to get query params
-function getQueryParam(name) {
-    const url = new URL(window.location.href);
-    return url.searchParams.get(name);
-}
+// Using shared getQueryParam from shared-utils.js
 
 const categoryId = getQueryParam('category_id');
 const categoryName = getQueryParam('category_name');
 const exerciseName = getQueryParam('exercise');
 
 // Global variables for custom exercise functionality
-let currentCategoryId = null;
-let currentCategoryName = null;
+window.currentCategoryId = null;
+window.currentCategoryName = null;
 
 // Barbell weight constants
 const STANDARD_BARBELL_WEIGHT = 45; // Standard Olympic barbell weight
@@ -597,54 +371,11 @@ let exerciseId = null; // Will be set after exercise is loaded
 // Audio functionality for PR achievements
 let prAudio = null;
 
-function initAudio() {
-    try {
-        prAudio = new Audio('/static/sounds/pr-achievement.mp3');
-        prAudio.preload = 'auto';
-        prAudio.volume = 0.6; // Set volume to 60%
-        
-        // Test if audio can be loaded
-        prAudio.addEventListener('canplaythrough', () => {
-            console.log('PR audio loaded successfully');
-        });
-        
-        prAudio.addEventListener('error', (e) => {
-            console.error('PR audio failed to load:', e);
-            prAudio = null;
-        });
-        
-        console.log('PR audio initialized successfully');
-    } catch (error) {
-        console.error('Failed to initialize PR audio:', error);
-        prAudio = null;
-    }
-}
+// Initialize audio using shared utility
+prAudio = initAudio('/static/sounds/pr-achievement.mp3');
 
 function playPRSound(type = 'pr') {
-    if (prAudio) {
-        try {
-            prAudio.currentTime = 0;
-            const playPromise = prAudio.play();
-            
-            if (playPromise !== undefined) {
-                playPromise.then(() => {
-                    console.log('Playing PR sound');
-                }).catch(error => {
-                    console.error('Failed to play PR sound:', error);
-                    // Fallback: show a visual notification instead
-                    showMessage('🎉 NEW PERSONAL RECORD!', 'success');
-                });
-            }
-        } catch (error) {
-            console.error('Error playing PR sound:', error);
-            // Fallback: show a visual notification instead
-            showMessage('🎉 NEW PERSONAL RECORD!', 'success');
-        }
-    } else {
-        console.warn('PR audio not initialized');
-        // Fallback: show a visual notification instead
-        showMessage('🎉 NEW PERSONAL RECORD!', 'success');
-    }
+    playSound(prAudio, type);
 }
 
 function handlePRAchievement(prsAchieved, exerciseName) {
@@ -663,7 +394,7 @@ function handlePRAchievement(prsAchieved, exerciseName) {
             }
         }).join(', ');
         
-        showMessage(`🎉 NEW PERSONAL RECORD! ${prTypes} achieved for ${exerciseName}!`, 'success');
+        showSnack(`🎉 NEW PERSONAL RECORD! ${prTypes} achieved for ${exerciseName}!`, 'success');
         
         // Add visual feedback to the PR summary
         const prSummary = document.querySelector('.pr-summary');
@@ -744,10 +475,10 @@ if (favoriteExerciseBtn) {
     favoriteExerciseBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         if (!exerciseId) {
-            showMessage('Exercise data not loaded yet. Please wait a moment and try again.', 'error');
+            showSnack('Exercise data not loaded yet. Please wait a moment and try again.', 'error');
             return;
         }
-        await toggleFavorite();
+        await toggleFavorite(exerciseId);
     });
 }
 
@@ -775,73 +506,10 @@ function resetWorkoutModal() {
     if (exerciseList) exerciseList.innerHTML = '';
 }
 
-async function openWorkoutModalNewFlow() {
-    resetWorkoutModal();
-    if (workoutModal) {
-        workoutModal.style.display = 'flex';
-    }
-    // Fetch categories
-    try {
-        const resp = await fetch('/fitness/api/exercise_categories');
-        const categories = await resp.json();
-        if (categoryList) {
-            categoryList.innerHTML = '';
-            categories.forEach(cat => {
-                const btn = document.createElement('button');
-                btn.className = 'btn btn-primary';
-                btn.textContent = cat.name;
-                btn.onclick = () => selectCategory(cat.id, cat.name);
-                categoryList.appendChild(btn);
-            });
-        }
-    } catch (err) {
-        if (categoryList) categoryList.innerHTML = '<div style="color:red">Failed to load categories</div>';
-    }
-}
+// Using openWorkoutModalNewFlow from workout-utils.js
 
-async function selectCategory(categoryId, categoryName) {
-    currentCategoryId = categoryId;
-    currentCategoryName = categoryName;
-    showStep('exercise');
-    if (exerciseList) exerciseList.innerHTML = '<div>Loading...</div>';
-    try {
-        const resp = await fetch(`/fitness/api/exercises/${categoryId}`);
-        const exercises = await resp.json();
-        if (exerciseList) {
-            exerciseList.innerHTML = '';
-            exercises.forEach(ex => {
-                const btn = document.createElement('button');
-                btn.className = 'btn btn-primary';
-                btn.textContent = ex.name;
-                btn.style.minWidth = '160px';
-                if (ex.is_favorite) {
-                    btn.classList.add('favorite-exercise');
-                    btn.innerHTML = '<span class="star">⭐</span> ' + ex.name;
-                }
-                btn.onclick = () => selectExercise(ex.id, ex.name);
-                exerciseList.appendChild(btn);
-            });
-        }
-    } catch (err) {
-        if (exerciseList) exerciseList.innerHTML = '<div style="color:red">Failed to load exercises</div>';
-    }
-    setupCustomExerciseForm();
-}
-
-function selectExercise(exerciseId, exerciseName) {
-    // Close the modal
-    if (workoutModal) {
-        workoutModal.style.display = 'none';
-    }
-    
-    // Redirect to workout entry page with the selected exercise
-    const params = new URLSearchParams({
-        category_id: currentCategoryId,
-        category_name: currentCategoryName,
-        exercise: exerciseName
-    });
-    window.location.href = `/fitness/workout_entry?${params.toString()}`;
-}
+// Using selectCategory from workout-utils.js
+// Using selectExercise from workout-utils.js
 
 // Custom exercise form setup
 function setupCustomExerciseForm() {
@@ -972,7 +640,7 @@ window.openStartWorkoutModal = function() {
     if (startWorkoutModal) {
         startWorkoutModal.style.display = 'flex';
         showStartWorkoutStep(1);
-        loadWorkoutTemplates();
+        loadWorkoutTemplatesAndDisplay();
     }
 }
 
@@ -987,7 +655,7 @@ window.backToWorkoutSelection = function() {
 window.nextToExerciseSelection = function() {
     const workoutName = document.getElementById('workout-template-name').value.trim();
     if (!workoutName) {
-        alert('Please enter a workout name');
+        showSnack('Please enter a workout name', 'error');
         return;
     }
     showStartWorkoutStep(3);
@@ -1021,8 +689,12 @@ window.selectWorkoutTemplate = function(templateId) {
         startWorkoutModal.style.display = 'none';
     }
     
-    // Redirect to workout entry with template
-    window.location.href = `/fitness/workout_entry?template_id=${templateId}`;
+    // Get the template name from the stored template data
+    const template = workoutTemplates.find(t => t.id === templateId);
+    const templateName = template ? template.name : 'Workout';
+    
+    // Redirect to workout session with template
+    startSessionFromTemplate(templateId, templateName);
 }
 
 function showStartWorkoutStep(step) {
@@ -1054,7 +726,11 @@ function showStartWorkoutStep(step) {
     }
 }
 
-async function loadWorkoutTemplates() {
+// Global variable to store template data
+let workoutTemplates = [];
+
+// Function to load and display workout templates
+async function loadWorkoutTemplatesAndDisplay() {
     const templateList = document.getElementById('workout-template-list');
     if (!templateList) {
         console.error('Template list element not found');
@@ -1062,36 +738,41 @@ async function loadWorkoutTemplates() {
     }
     
     try {
-        const response = await fetch('/fitness/api/workout_templates');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const templates = await response.json();
-        console.log('Workout templates response:', templates);
+        templateList.innerHTML = '<p style="text-align: center; color: #666;">Loading templates...</p>';
         
-        if (Array.isArray(templates) && templates.length > 0) {
-            templateList.innerHTML = '';
-            templates.forEach(template => {
-                console.log('Processing template:', template);
-                const templateItem = document.createElement('div');
-                templateItem.className = 'workout-template-item';
-                templateItem.innerHTML = `
-                    <div class="template-info">
-                        <h4>${template.name}</h4>
-                        <p>${template.exercise_count || 0} exercises</p>
-                    </div>
-                    <button onclick="selectWorkoutTemplate(${template.id})" class="btn btn-primary">Select</button>
-                `;
-                templateList.appendChild(templateItem);
-            });
-            console.log(`Loaded ${templates.length} workout templates`);
-        } else {
-            templateList.innerHTML = '<p style="text-align: center; color: #666;">No saved workout templates found.</p>';
-            console.log('No workout templates found');
+        const templates = await loadWorkoutTemplates();
+        
+        // Store templates globally
+        workoutTemplates = templates;
+        
+        if (templates.length === 0) {
+            templateList.innerHTML = '<p style="text-align: center; color: #666;">No saved workout templates found. Create your first template above!</p>';
+            return;
         }
+        
+        templateList.innerHTML = '';
+        templates.forEach(template => {
+            const templateItem = document.createElement('div');
+            templateItem.className = 'workout-template-item';
+            templateItem.innerHTML = `
+                <div class="template-info">
+                    <h4>${template.name}</h4>
+                    <p>${template.exercise_count} exercises • Created ${new Date(template.created_at).toLocaleDateString()}</p>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="editWorkoutTemplate(${template.id})" class="btn btn-secondary" style="padding: 8px 16px; font-size: 0.9em;">
+                        Edit
+                    </button>
+                    <button onclick="selectWorkoutTemplate(${template.id})" class="btn btn-primary" style="padding: 8px 16px; font-size: 0.9em;">
+                        Start Workout
+                    </button>
+                </div>
+            `;
+            templateList.appendChild(templateItem);
+        });
     } catch (error) {
         console.error('Error loading workout templates:', error);
-        templateList.innerHTML = '<p style="text-align: center; color: #666;">Error loading templates</p>';
+        templateList.innerHTML = '<p style="text-align: center; color: red;">Error loading templates. Please try again.</p>';
     }
 }
 
@@ -1192,12 +873,12 @@ async function saveWorkoutTemplateInternal() {
     const workoutName = document.getElementById('workout-template-name').value.trim();
     
     if (!workoutName) {
-        alert('Please enter a workout name');
+        showSnack('Please enter a workout name', 'error');
         return;
     }
     
     if (selectedExercises.length === 0) {
-        alert('Please select at least one exercise');
+        showSnack('Please select at least one exercise', 'error');
         return;
     }
     
@@ -1238,91 +919,283 @@ async function saveWorkoutTemplateInternal() {
             
             // Refresh the template list
             setTimeout(() => {
-                loadWorkoutTemplates();
+                loadWorkoutTemplatesAndDisplay();
             }, 1000);
         } else {
             const error = await response.json();
             console.error('Error response:', error);
-            alert('Error saving workout: ' + (error.error || 'Unknown error'));
+            showSnack('Error saving workout: ' + (error.error || 'Unknown error'), 'error');
         }
     } catch (error) {
         console.error('Error saving workout template:', error);
-        alert('Error saving workout template');
+        showSnack('Error saving workout template', 'error');
     }
 }
 
-// Load workout history
-async function loadFullWorkoutHistory() {
-    const historyTableBody = document.querySelector('#full-workout-history-table tbody');
-    if (!historyTableBody) return;
+// Using loadFullWorkoutHistory from workout-utils.js
+
+// Using loadTodaysWorkout from workout-utils.js
+
+// Edit Workout Template Functions
+let currentEditingTemplateId = null;
+let editSelectedCategories = [];
+let editSelectedExercises = [];
+
+async function editWorkoutTemplate(templateId) {
+    currentEditingTemplateId = templateId;
     
     try {
-        const response = await fetch('/fitness/api/workout_history');
+        // Load the template data
+        const response = await fetch(`/fitness/api/workout_templates/${templateId}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const history = await response.json();
+        const template = await response.json();
         
-        historyTableBody.innerHTML = '';
-        if (history && history.length > 0) {
-            history.forEach(entry => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${new Date(entry.date).toLocaleDateString()}</td>
-                    <td>${entry.category_name || 'N/A'}</td>
-                    <td>${entry.exercise_name || 'N/A'}</td>
-                    <td>${entry.weight || 'N/A'}</td>
-                    <td>${entry.reps || 'N/A'}</td>
-                    <td>${entry.sets || 'N/A'}</td>
-                `;
-                historyTableBody.appendChild(row);
-            });
-        } else {
-            historyTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #666;">No workout history found</td></tr>';
-        }
+        // Populate the edit form
+        document.getElementById('edit-workout-template-name').value = template.name;
+        
+        // Pre-select the exercises that are already in the template
+        editSelectedExercises = template.exercises.map(ex => ({
+            id: ex.exercise_id,
+            name: ex.exercise_name,
+            category_name: ex.category_name || 'Unknown'
+        }));
+        
+        // Show the edit modal
+        document.getElementById('edit-workout-template-modal').style.display = 'flex';
+        showEditWorkoutStep(1);
+        
+        // Load categories for editing
+        await loadEditCategoriesForWorkout();
+        
     } catch (error) {
-        console.error('Error loading workout history:', error);
-        historyTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #666;">No workout history available</td></tr>';
+        console.error('Error loading template for editing:', error);
+        showSnack('Error loading template for editing', 'error');
     }
 }
 
-// Load today's workout
-async function loadTodaysWorkout() {
-    const workoutTableBody = document.querySelector('#workout-table tbody');
-    if (!workoutTableBody) return;
+function showEditWorkoutStep(step) {
+    // Hide all steps
+    document.getElementById('edit-workout-step-1').style.display = 'none';
+    document.getElementById('edit-workout-step-2').style.display = 'none';
+    document.getElementById('edit-workout-step-3').style.display = 'none';
+    
+    // Show the specified step
+    document.getElementById(`edit-workout-step-${step}`).style.display = 'block';
+}
+
+async function loadEditCategoriesForWorkout() {
+    const categoryList = document.getElementById('edit-multi-category-list');
+    if (!categoryList) return;
     
     try {
-        const response = await fetch('/fitness/api/todays_workout');
+        const response = await fetch('/fitness/api/exercise_categories');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const workout = await response.json();
+        const categories = await response.json();
         
-        workoutTableBody.innerHTML = '';
-        if (workout && workout.length > 0) {
-            workout.forEach(set => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${set.category_name || 'N/A'}</td>
-                    <td>${set.exercise_name || 'N/A'}</td>
-                    <td>${set.set_number || 'N/A'}</td>
-                    <td>${set.total_weight || 'N/A'}</td>
-                    <td>${set.reps || 'N/A'}</td>
-                    <td>
-                        <button onclick="editSet(${set.id})" class="btn btn-sm btn-secondary">Edit</button>
-                        <button onclick="deleteSet(${set.id})" class="btn btn-sm btn-danger">Delete</button>
-                    </td>
-                `;
-                workoutTableBody.appendChild(row);
-            });
-        } else {
-            workoutTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #666;">No workouts logged today</td></tr>';
-        }
+        categoryList.innerHTML = '';
+        categories.forEach(cat => {
+            const categoryBtn = document.createElement('button');
+            categoryBtn.className = 'category-btn';
+            categoryBtn.textContent = cat.name;
+            categoryBtn.dataset.categoryId = cat.id;
+            categoryBtn.dataset.categoryName = cat.name;
+            categoryBtn.onclick = () => toggleEditCategorySelection(cat.id, cat.name, categoryBtn);
+            categoryList.appendChild(categoryBtn);
+        });
+        
+        // Pre-select categories that contain the current exercises
+        const exerciseCategories = [...new Set(editSelectedExercises.map(ex => ex.category_name))];
+        categories.forEach(cat => {
+            if (exerciseCategories.includes(cat.name)) {
+                const btn = categoryList.querySelector(`[data-category-id="${cat.id}"]`);
+                if (btn) {
+                    btn.classList.add('selected');
+                    editSelectedCategories.push({ id: cat.id, name: cat.name });
+                }
+            }
+        });
+        
     } catch (error) {
-        console.error('Error loading today\'s workout:', error);
-        workoutTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #666;">No workouts available</td></tr>';
+        console.error('Error loading categories for editing:', error);
+        categoryList.innerHTML = '<p style="color: red;">Error loading categories</p>';
     }
 }
+
+function toggleEditCategorySelection(categoryId, categoryName, button) {
+    const index = editSelectedCategories.findIndex(cat => cat.id === categoryId);
+    if (index > -1) {
+        editSelectedCategories.splice(index, 1);
+        button.classList.remove('selected');
+    } else {
+        editSelectedCategories.push({ id: categoryId, name: categoryName });
+        button.classList.add('selected');
+    }
+}
+
+function nextToEditExerciseSelection() {
+    const templateName = document.getElementById('edit-workout-template-name').value.trim();
+    if (!templateName) {
+        showSnack('Please enter a workout name', 'error');
+        return;
+    }
+    showEditWorkoutStep(2);
+    loadEditExercisesForSelectedCategories();
+}
+
+function backToEditName() {
+    showEditWorkoutStep(1);
+}
+
+async function loadEditExercisesForSelectedCategories() {
+    const exerciseList = document.getElementById('edit-multi-exercise-list');
+    if (!exerciseList) return;
+    
+    exerciseList.innerHTML = '<p>Loading exercises...</p>';
+    
+    try {
+        const allExercises = [];
+        for (const category of editSelectedCategories) {
+            const response = await fetch(`/fitness/api/exercises/${category.id}`);
+            if (response.ok) {
+                const exercises = await response.json();
+                exercises.forEach(ex => {
+                    ex.category_name = category.name;
+                    allExercises.push(ex);
+                });
+            }
+        }
+        
+        exerciseList.innerHTML = '';
+        allExercises.forEach(ex => {
+            const exerciseBtn = document.createElement('button');
+            exerciseBtn.className = 'exercise-btn';
+            exerciseBtn.textContent = ex.name;
+            exerciseBtn.dataset.exerciseId = ex.id;
+            exerciseBtn.dataset.exerciseName = ex.name;
+            exerciseBtn.dataset.categoryName = ex.category_name;
+            
+            // Check if this exercise is already selected
+            const isSelected = editSelectedExercises.some(selected => selected.id === ex.id);
+            if (isSelected) {
+                exerciseBtn.classList.add('selected');
+            }
+            
+            exerciseBtn.onclick = () => toggleEditExerciseSelection(ex.id, ex.name, ex.category_name, exerciseBtn);
+            exerciseList.appendChild(exerciseBtn);
+        });
+    } catch (error) {
+        console.error('Error loading exercises for editing:', error);
+        exerciseList.innerHTML = '<p style="color: red;">Error loading exercises</p>';
+    }
+}
+
+function toggleEditExerciseSelection(exerciseId, exerciseName, categoryName, button) {
+    const index = editSelectedExercises.findIndex(ex => ex.id === exerciseId);
+    if (index > -1) {
+        editSelectedExercises.splice(index, 1);
+        button.classList.remove('selected');
+    } else {
+        editSelectedExercises.push({ 
+            id: exerciseId, 
+            name: exerciseName, 
+            category_name: categoryName 
+        });
+        button.classList.add('selected');
+    }
+}
+
+async function updateWorkoutTemplate() {
+    const workoutName = document.getElementById('edit-workout-template-name').value.trim();
+    
+    if (!workoutName) {
+        showSnack('Please enter a workout name', 'error');
+        return;
+    }
+    
+    if (editSelectedExercises.length === 0) {
+        showSnack('Please select at least one exercise', 'error');
+        return;
+    }
+    
+    if (!currentEditingTemplateId) {
+        showSnack('No template selected for editing', 'error');
+        return;
+    }
+    
+    try {
+        const requestBody = {
+            name: workoutName,
+            exercises: editSelectedExercises.map((ex, idx) => ({
+                exercise_name: ex.name,
+                exercise_id: ex.id,
+                category_name: ex.category_name,
+                order: idx + 1
+            }))
+        };
+        
+        const response = await fetch(`/fitness/api/workout_templates/${currentEditingTemplateId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            console.log('Template updated successfully:', result);
+            showEditWorkoutStep(3);
+            
+            // Reset form
+            document.getElementById('edit-workout-template-name').value = '';
+            editSelectedCategories = [];
+            editSelectedExercises = [];
+            currentEditingTemplateId = null;
+            
+            // Refresh the template list
+            setTimeout(() => {
+                loadWorkoutTemplatesAndDisplay();
+            }, 1000);
+        } else {
+            const error = await response.json();
+            console.error('Error response:', error);
+            showSnack('Error updating template: ' + (error.error || 'Unknown error'), 'error');
+        }
+    } catch (error) {
+        console.error('Error updating workout template:', error);
+        showSnack('Error updating workout template', 'error');
+    }
+}
+
+function closeEditWorkoutModal() {
+    document.getElementById('edit-workout-template-modal').style.display = 'none';
+    // Reset form
+    document.getElementById('edit-workout-template-name').value = '';
+    editSelectedCategories = [];
+    editSelectedExercises = [];
+    currentEditingTemplateId = null;
+}
+
+function closeEditWorkoutSuccess() {
+    document.getElementById('edit-workout-template-modal').style.display = 'none';
+    // Reset form
+    document.getElementById('edit-workout-template-name').value = '';
+    editSelectedCategories = [];
+    editSelectedExercises = [];
+    currentEditingTemplateId = null;
+}
+
+// Add event listener for close button
+document.addEventListener('DOMContentLoaded', function() {
+    const closeEditModalBtn = document.getElementById('close-edit-workout-modal');
+    if (closeEditModalBtn) {
+        closeEditModalBtn.addEventListener('click', closeEditWorkoutModal);
+    }
+});
 
 // --- Rest Timer Logic ---
 let restTimerInterval = null;
@@ -1362,7 +1235,7 @@ function updateRestTimerDisplay() {
                 display.className = 'timer-display completed';
                 
                 // Play completion sound or show notification
-                showMessage('⏰ Rest timer completed!', 'success');
+                showSnack('⏰ Rest timer completed!', 'success');
             } else {
                 status.textContent = 'Ready';
                 status.className = 'timer-status';
@@ -1389,7 +1262,7 @@ function startRestTimer() {
         } else {
             // Timer completed
             stopRestTimer();
-            showMessage('⏰ Rest period completed! Ready for your next set!', 'success');
+            showSnack('⏰ Rest period completed! Ready for your next set!', 'success');
         }
     }, 1000);
     
@@ -1488,7 +1361,7 @@ function setupPresetTimers() {
                 startRestTimer();
             }, 500);
             
-            showMessage(`Timer started: ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`, 'success');
+            showSnack(`Timer started: ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`, 'success');
         });
     });
 }
@@ -1513,9 +1386,9 @@ function setupCustomTimeInput() {
                     btn.classList.remove('active');
                 });
                 
-                showMessage(`Custom timer set to ${minutes}:${String(seconds).padStart(2, '0')}`, 'info');
+                showSnack(`Custom timer set to ${minutes}:${String(seconds).padStart(2, '0')}`, 'info');
             } else {
-                showMessage('Please enter a valid time', 'error');
+                showSnack('Please enter a valid time', 'error');
             }
         });
     }
@@ -1546,26 +1419,53 @@ document.addEventListener('DOMContentLoaded', () => {
     // Setup workout tab switching
     setupWorkoutTabSwitching();
     
-    // Setup activity/workout sub-tab switching
+    // Setup activity/workout sub-tab switching with URL state management
     const workoutsTabBtn = document.getElementById('activity-sub-tab-workouts');
     const activitiesTabBtn = document.getElementById('activity-sub-tab-activities');
     const workoutsContent = document.getElementById('activity-sub-content-workouts');
     const activitiesContent = document.getElementById('activity-sub-content-activities');
 
     if (workoutsTabBtn && activitiesTabBtn && workoutsContent && activitiesContent) {
-        workoutsTabBtn.addEventListener('click', () => {
+        // Function to switch to workouts tab
+        function switchToWorkouts() {
             workoutsTabBtn.classList.add('active');
             activitiesTabBtn.classList.remove('active');
             workoutsContent.style.display = 'block';
             activitiesContent.style.display = 'none';
-        });
+            
+            // Update URL
+            const url = new URL(window.location);
+            url.searchParams.set('activity-tab', 'workouts');
+            window.history.pushState({}, '', url);
+        }
 
-        activitiesTabBtn.addEventListener('click', () => {
+        // Function to switch to activities tab
+        function switchToActivities() {
             activitiesTabBtn.classList.add('active');
             workoutsTabBtn.classList.remove('active');
             activitiesContent.style.display = 'block';
             workoutsContent.style.display = 'none';
-        });
+            
+            // Update URL
+            const url = new URL(window.location);
+            url.searchParams.set('activity-tab', 'activities');
+            window.history.pushState({}, '', url);
+        }
+
+        // Add event listeners
+        workoutsTabBtn.addEventListener('click', switchToWorkouts);
+        activitiesTabBtn.addEventListener('click', switchToActivities);
+
+        // Check URL parameter on page load to restore state
+        const urlParams = new URLSearchParams(window.location.search);
+        const activityTab = urlParams.get('activity-tab');
+        
+        if (activityTab === 'workouts') {
+            switchToWorkouts();
+        } else {
+            // Default to activities tab
+            switchToActivities();
+        }
     }
 
     // Add event listeners for workout modal buttons (only if they exist)
@@ -1642,10 +1542,14 @@ window.testPRFunctionality = function() {
     }
     
     // Test personal records loading
-    loadPersonalRecords();
+    if (exerciseName) {
+        loadPersonalRecords(exerciseName);
+    }
     
     // Test favorite status
-    updateFavoriteButtonStatus();
+    if (exerciseId) {
+        updateFavoriteButtonStatus(exerciseId);
+    }
     
     console.log('PR functionality test complete');
 };
@@ -1676,7 +1580,7 @@ window.testLastInputs = function() {
 // Function to manually clear last inputs (for testing)
 window.clearLastInputsManual = function() {
     clearLastInputs();
-    showMessage('Last inputs cleared for ' + exerciseName, 'info');
+    showSnack('Last inputs cleared for ' + exerciseName, 'info');
 };
 
 // Comprehensive test function for all features
@@ -1739,13 +1643,80 @@ window.testAllFeatures = function() {
     console.log('=== TEST COMPLETE ===');
 };
 
+// Function to load and apply a workout template
+async function loadAndApplyTemplate(templateId) {
+    try {
+        console.log('Loading template with ID:', templateId);
+        const response = await fetch(`/fitness/api/workout_templates/${templateId}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const template = await response.json();
+        
+        console.log('Template loaded:', template);
+        
+        // Create a workout session from the template
+        const today = new Date().toISOString().split('T')[0];
+        const sessionData = {
+            name: template.name,
+            date: today,
+            template_id: templateId,
+            exercises: template.exercises.map(ex => ({
+                exercise_name: ex.exercise_name,
+                category_name: ex.category_name
+            }))
+        };
+        
+        console.log('Creating workout session with data:', sessionData);
+        
+        const sessionResponse = await fetch('/fitness/api/workout_sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(sessionData)
+        });
+        
+        if (!sessionResponse.ok) {
+            const errorText = await sessionResponse.text();
+            console.error('Session creation failed:', errorText);
+            throw new Error(`Failed to create workout session: ${sessionResponse.status} - ${errorText}`);
+        }
+        
+        const session = await sessionResponse.json();
+        console.log('Workout session created:', session);
+        
+        // Show success message
+        showSnack(`Workout "${template.name}" loaded successfully!`, 'success');
+        
+        // Redirect to workout session page
+        startSessionFromTemplate(templateId, template.name);
+        
+    } catch (error) {
+        console.error('Error loading template:', error);
+        showSnack('Failed to load workout template', 'error');
+    }
+}
+
+// Check for template_id parameter on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const templateId = urlParams.get('template_id');
+    
+    if (templateId) {
+        console.log('Template ID found in URL:', templateId);
+        // Load the template after a short delay to ensure everything is initialized
+        setTimeout(() => {
+            loadAndApplyTemplate(templateId);
+        }, 500);
+    }
+});
+
 // Test function for debugging workout templates
 window.debugWorkoutTemplates = function() {
     console.log('=== WORKOUT TEMPLATE DEBUG ===');
     
     // Test 1: Check if we can load templates
     console.log('1. Testing template loading...');
-    loadWorkoutTemplates();
+    loadWorkoutTemplatesAndDisplay();
     
     // Test 2: Check selected exercises
     console.log('2. Selected exercises:', selectedExercises);
@@ -1800,4 +1771,39 @@ window.createSampleTemplate = function() {
     
     // Save the template
     saveWorkoutTemplateInternal();
-}; 
+};
+
+// Expose edit modal functions to window for inline HTML access
+window.editWorkoutTemplate = editWorkoutTemplate;
+window.nextToEditExerciseSelection = nextToEditExerciseSelection;
+window.backToEditName = backToEditName;
+window.loadEditExercisesForSelectedCategories = loadEditExercisesForSelectedCategories;
+window.updateWorkoutTemplate = updateWorkoutTemplate;
+window.closeEditWorkoutModal = closeEditWorkoutModal;
+window.closeEditWorkoutSuccess = closeEditWorkoutSuccess;
+
+// Utility to start a session from a template and redirect
+async function startSessionFromTemplate(templateId, templateName) {
+    const today = new Date().toISOString().split('T')[0];
+    // Use a unique session name per template per day
+    const sessionName = (templateName ? templateName : 'Workout') + ' - ' + today;
+    try {
+        const resp = await fetch('/fitness/api/workout_sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: sessionName,
+                date: today,
+                template_id: templateId
+            })
+        });
+        const result = await resp.json();
+        if (resp.ok && result.session && result.session.id) {
+            window.location.href = `/fitness/workout_entry?session_id=${result.session.id}`;
+        } else {
+            alert(result.error || 'Failed to start session');
+        }
+    } catch (err) {
+        alert('Error starting session: ' + err.message);
+    }
+} 

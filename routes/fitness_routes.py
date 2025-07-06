@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app, render_template
 from flask_login import login_required, current_user
-from models import db, User, Stat, FoodReference, FoodEntry, Workout, Activity, TDEE, UserSettings, ExerciseCategory, Exercise, UserFavoriteExercise, ProgressPic, PersonalRecord, FastingPeriod, DistanceMilestone, UserExercise, WorkoutTemplate, WorkoutTemplateExercise, WorkoutSession, WorkoutSessionExercise
+from models import db, User, Stat, FoodReference, FoodEntry, Workout, Activity, TDEE, UserSettings, ExerciseCategory, Exercise, UserFavoriteExercise, ProgressPic, PersonalRecord, FastingPeriod, DistanceMilestone, UserExercise, WorkoutTemplate, WorkoutTemplateExercise, WorkoutSession, WorkoutSessionExercise, RepeatActivity
 from utils import clean_nutrient_value, convert_units
 from datetime import datetime, timedelta
 import traceback
@@ -36,14 +36,12 @@ def calculate_tdee_for_date(user_id, date, save_to_db=False, activity_level=None
         if stat:
             bmr = stat.bmr
         elif weight is not None and height is not None and age is not None and sex is not None:
-            print(f"[BMR DEBUG] Using profile values: weight={weight}, height={height}, age={age}, sex={sex}, units={units}")
             if units == 'imperial':
                 # Use imperial formula
                 if str(sex).lower() == 'male':
                     bmr = 4.536 * weight + 15.88 * height - 5 * age + 5
                 else:
                     bmr = 4.536 * weight + 15.88 * height - 5 * age - 161
-                print(f"[BMR DEBUG] Calculated BMR (imperial): {bmr}")
             else:
                 # Use metric formula
                 weight_kg = weight / 2.20462
@@ -52,7 +50,6 @@ def calculate_tdee_for_date(user_id, date, save_to_db=False, activity_level=None
                     bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age + 5
                 else:
                     bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age - 161
-                print(f"[BMR DEBUG] Calculated BMR (metric): {bmr}")
         else:
             return None  # Skip if profile incomplete and no BMR available
 
@@ -60,22 +57,22 @@ def calculate_tdee_for_date(user_id, date, save_to_db=False, activity_level=None
         activities = Activity.query.filter_by(user_id=user_id, date=date).order_by(Activity.id.desc()).all()
         activity_calories = sum(a.calories_burned for a in activities if a.calories_burned)
         
-        # Determine the daily activity level with a clear priority
-        if activity_level:
+        tdee_record = TDEE.query.filter_by(user_id=user_id, date=date).first()
+        if not activity_level and tdee_record and tdee_record.activity_level:
+            daily_activity_level = tdee_record.activity_level
+        elif activity_level:
             daily_activity_level = activity_level
         else:
-            # Find the most recently added activity for the day that has an activity level
             latest_activity_with_level = next((a.activity_level for a in activities if a.activity_level), None)
             if latest_activity_with_level:
                 daily_activity_level = latest_activity_with_level
             else:
-                # Fallback to user's general setting if no daily level is set
                 user_settings = UserSettings.query.filter_by(user_id=user_id).first()
                 if user_settings and user_settings.activity_level:
                     daily_activity_level = user_settings.activity_level
                 else:
                     daily_activity_level = 'light'  # Default if no setting is found
-
+        
         # Activity level multipliers
         activity_multipliers = {
             'sedentary': 1.2,
@@ -125,10 +122,8 @@ def calculate_tdee_for_date(user_id, date, save_to_db=False, activity_level=None
         # Save to database only if requested
         if save_to_db:
             tdee = TDEE.query.filter_by(user_id=user_id, date=date).first()
-            # Preserve manually set activity_level if not provided
-            if not activity_level and tdee and tdee.activity_level:
-                activity_level = tdee.activity_level
-            # Only update if activity_level is not None
+            
+            # If activity_level is provided, use it to update the calculation
             if activity_level is not None:
                 daily_activity_level = activity_level
                 activity_multiplier = activity_multipliers.get(daily_activity_level, 1.375)
@@ -137,7 +132,8 @@ def calculate_tdee_for_date(user_id, date, save_to_db=False, activity_level=None
                 tdee_data['activity_multiplier'] = activity_multiplier
                 tdee_data['base_tdee'] = round(base_tdee)
                 tdee_data['tdee'] = round(base_tdee + activity_calories)
-            # The following fields are valid for the TDEE model; linter errors are false positives
+            
+            # Always update the database with the calculated values from tdee_data
             if tdee:
                 tdee.bmr = tdee_data['bmr']
                 tdee.activity_calories = tdee_data['activity_calories']
@@ -563,13 +559,40 @@ def get_workouts():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+def update_milestone_from_activity(user_id, miles):
+    """Update distance milestone progress when an activity with miles is logged."""
+    if not miles or miles <= 0:
+        return
+    
+    # Get the user's active milestone
+    milestone = DistanceMilestone.query.filter_by(
+        user_id=user_id,
+        is_active=True
+    ).first()
+    
+    if milestone:
+        # Update completed distance
+        milestone.completed_distance += miles
+        
+        # Check if milestone is completed
+        if milestone.completed_distance >= milestone.trail_distance:
+            milestone.completed_distance = milestone.trail_distance
+            milestone.is_active = False  # Mark as completed
+        
+        db.session.commit()
+
 @fitness_bp.route('/add_activity', methods=['POST'])
 @login_required
 def add_activity():
     try:
-        data = request.form
+        # Handle both form data and JSON requests
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form
+        
         date = datetime.strptime(data.get('activity_date'), '%Y-%m-%d').date()
-        activity_type = data.get('activity_type')
+        activity_type = data.get('activity_type').title().strip()  # Normalize to title case
         duration = float(data.get('duration'))
         intensity = data.get('intensity')
         miles = float(data.get('miles')) if data.get('miles') else None
@@ -583,18 +606,54 @@ def add_activity():
         elif intensity == 'High':
             calories_burned = int(duration * 10)
         
-        activity = Activity(
-            user_id=current_user.id,
-            date=date,
-            activity_type=activity_type,
-            duration=duration,
-            intensity=intensity,
-            calories_burned=calories_burned,
-            miles=miles
-        )
-        db.session.add(activity)
-        db.session.commit()
-        update_tdee_for_date(current_user.id, date)
+        # Only create the activity if this is not just a repeat activity creation
+        if not data.get('repeat_activity') or data.get('repeat_activity') == '0':
+            activity = Activity(
+                user_id=current_user.id,
+                date=date,
+                activity_type=activity_type,
+                duration=duration,
+                intensity=intensity,
+                calories_burned=calories_burned,
+                miles=miles
+            )
+            db.session.add(activity)
+            db.session.commit()
+            
+            # Update milestone if activity has miles
+            if miles:
+                update_milestone_from_activity(current_user.id, miles)
+            
+            update_tdee_for_date(current_user.id, date)
+        
+        # Handle repeat activity if checkbox is checked or if this is a repeat-only creation
+        if data.get('repeat_activity') == '1' or data.get('repeat_activity') == True:
+            repeat_days = data.get('repeat_days')
+            if isinstance(repeat_days, list):
+                repeat_days = repeat_days
+            else:
+                repeat_days = data.getlist('repeat_days') if hasattr(data, 'getlist') else []
+            
+            repeat_start_date = data.get('repeat_start_date')
+            repeat_end_date = data.get('repeat_end_date')
+            
+            if repeat_days and repeat_start_date:
+                # Create repeat activity
+                from models import RepeatActivity
+                repeat_activity = RepeatActivity(
+                    user_id=current_user.id,
+                    activity_type=activity_type,
+                    duration=duration,
+                    intensity=intensity,
+                    calories=calories_burned,
+                    miles=miles,
+                    days_of_week=','.join(repeat_days),
+                    start_date=datetime.strptime(repeat_start_date, '%Y-%m-%d').date(),
+                    end_date=datetime.strptime(repeat_end_date, '%Y-%m-%d').date() if repeat_end_date else None
+                )
+                db.session.add(repeat_activity)
+                db.session.commit()
+        
         return jsonify({'message': 'Activity added successfully'})
     except Exception as e:
         db.session.rollback()
@@ -627,11 +686,16 @@ def edit_activity(id):
         if activity.user_id != current_user.id:
             return jsonify({'error': 'Unauthorized'}), 403
         data = request.get_json()
+        
+        # Store old miles for milestone adjustment
+        old_miles = activity.miles or 0
+        new_miles = float(data.get('miles')) if data.get('miles') else None
+        
         activity.date = datetime.strptime(data.get('activity_date'), '%Y-%m-%d').date()
-        activity.activity_type = data.get('activity_type')
+        activity.activity_type = data.get('activity_type').title().strip()  # Normalize to title case
         activity.duration = float(data.get('duration'))
         activity.intensity = data.get('intensity')
-        activity.miles = float(data.get('miles')) if data.get('miles') else None
+        activity.miles = new_miles
         
         # Calculate calories burned based on intensity
         calories_burned = 0
@@ -642,7 +706,18 @@ def edit_activity(id):
         elif activity.intensity == 'High':
             calories_burned = int(activity.duration * 10)
         activity.calories_burned = calories_burned
+        
         db.session.commit()
+        
+        # Update milestone if miles changed
+        if new_miles != old_miles:
+            # Remove old miles from milestone
+            if old_miles and old_miles > 0:
+                update_milestone_from_activity(current_user.id, -old_miles)
+            # Add new miles to milestone
+            if new_miles and new_miles > 0:
+                update_milestone_from_activity(current_user.id, new_miles)
+        
         update_tdee_for_date(current_user.id, activity.date)
         return jsonify({'message': 'Activity updated successfully'})
     except Exception as e:
@@ -656,9 +731,18 @@ def delete_activity(id):
         activity = Activity.query.get_or_404(id)
         if activity.user_id != current_user.id:
             return jsonify({'error': 'Unauthorized'}), 403
+        
+        # Store miles for milestone adjustment
+        miles = activity.miles or 0
         date = activity.date
+        
         db.session.delete(activity)
         db.session.commit()
+        
+        # Remove miles from milestone if activity had miles
+        if miles and miles > 0:
+            update_milestone_from_activity(current_user.id, -miles)
+        
         update_tdee_for_date(current_user.id, date)
         return jsonify({'message': 'Activity deleted successfully'})
     except Exception as e:
@@ -1126,7 +1210,7 @@ def toggle_favorite(exercise_id):
 @fitness_bp.route('/api/latest_weight')
 @login_required
 def get_latest_weight():
-    """Get the user's latest weight from stats."""
+    """Get the user's latest weight from stats or profile."""
     try:
         latest_stat = Stat.query.filter_by(user_id=current_user.id).order_by(Stat.date.desc()).first()
         
@@ -1137,11 +1221,20 @@ def get_latest_weight():
                 'change': None  # Could calculate change from previous entry if needed
             })
         else:
-            return jsonify({
-                'weight': None,
-                'date': None,
-                'change': None
-            })
+            # Fallback to user profile weight if no stats available
+            if current_user.weight:
+                return jsonify({
+                    'weight': current_user.weight,
+                    'date': None,  # No specific date for profile weight
+                    'change': None,
+                    'source': 'profile'  # Indicate this is from profile, not stats
+                })
+            else:
+                return jsonify({
+                    'weight': None,
+                    'date': None,
+                    'change': None
+                })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -1289,10 +1382,17 @@ def edit_stat(id):
 @fitness_bp.route('/workout_entry')
 @login_required
 def workout_entry():
+    """
+    Renders the workout entry page. Handles both manual and session modes.
+    Pass session_id or template_id as query params for session mode.
+    """
     category_id = request.args.get('category_id')
     category_name = request.args.get('category_name')
     exercise = request.args.get('exercise')
-    return render_template('workout_entry.html', category_id=category_id, category_name=category_name, exercise=exercise)
+    session_id = request.args.get('session_id')
+    template_id = request.args.get('template_id')
+    session_mode = bool(session_id or template_id)
+    return render_template('workout_entry.html', category_id=category_id, category_name=category_name, exercise=exercise, session_id=session_id, template_id=template_id, session_mode=session_mode)
 
 @fitness_bp.route('/upload_progress_pic', methods=['POST'])
 @login_required
@@ -2108,18 +2208,21 @@ def create_workout_template():
         for ex in exercises:
             exercise_id = ex.get('exercise_id')
             order = ex.get('order', 0)
-            # Fetch exercise name from Exercise model if possible
+            category_id = ex.get('category_id')
+            # Fetch exercise name and category_id from Exercise model if possible
             exercise_name = None
             if exercise_id:
                 exercise_obj = Exercise.query.get(exercise_id)
-                exercise_name = exercise_obj.name if exercise_obj else 'Exercise'
+                exercise_name = exercise_obj.name if exercise_obj else ex.get('exercise_name')
+                if not category_id and exercise_obj:
+                    category_id = exercise_obj.category_id
             else:
-                exercise_name = ex.get('exercise_name', 'Exercise')
-
+                exercise_name = ex.get('exercise_name')
             template_exercise = WorkoutTemplateExercise(
                 template_id=template.id,
                 exercise_name=exercise_name,
                 exercise_id=exercise_id,
+                category_id=category_id,  # <-- Add this line
                 order=order
             )
             db.session.add(template_exercise)
@@ -2201,6 +2304,7 @@ def update_workout_template(template_id):
         description = data.get('description', '').strip()
         notes = data.get('notes', '').strip()
         is_public = data.get('is_public', template.is_public)
+        exercises = data.get('exercises', [])
         
         if not name:
             return jsonify({'error': 'Template name is required'}), 400
@@ -2219,6 +2323,42 @@ def update_workout_template(template_id):
         template.notes = notes
         template.is_public = is_public
         template.updated_at = datetime.utcnow()
+        
+        # If exercises are provided, update the template exercises
+        if exercises:
+            # Delete existing exercises
+            WorkoutTemplateExercise.query.filter_by(template_id=template_id).delete()
+            
+            # Add new exercises
+            for idx, exercise_data in enumerate(exercises):
+                exercise_name = exercise_data.get('exercise_name', '').strip()
+                exercise_id = exercise_data.get('exercise_id')
+                category_id = exercise_data.get('category_id')
+                order = exercise_data.get('order', idx + 1)
+                notes = exercise_data.get('notes', '').strip()
+                target_sets = exercise_data.get('target_sets')
+                target_reps = exercise_data.get('target_reps')
+                target_weight = exercise_data.get('target_weight')
+                rest_time = exercise_data.get('rest_time')
+                
+                if exercise_id and not category_id:
+                    exercise_obj = Exercise.query.get(exercise_id)
+                    if exercise_obj:
+                        category_id = exercise_obj.category_id
+                if exercise_name:
+                    template_exercise = WorkoutTemplateExercise(
+                        template_id=template_id,
+                        exercise_name=exercise_name,
+                        exercise_id=exercise_id,
+                        category_id=category_id,  # <-- Add this line
+                        order=order,
+                        notes=notes,
+                        target_sets=target_sets,
+                        target_reps=target_reps,
+                        target_weight=target_weight,
+                        rest_time=rest_time
+                    )
+                    db.session.add(template_exercise)
         
         db.session.commit()
         
@@ -2405,6 +2545,31 @@ def delete_template_exercise(template_id, exercise_id):
 # WORKOUT SESSION API ROUTES
 # ============================================================================
 
+def populate_session_exercises_from_template(session, template):
+    """Populate session exercises from template if missing"""
+    if not session.exercises and template:
+        print(f"Populating exercises from template '{template.name}' to session '{session.name}'")
+        for template_exercise in template.exercises:
+            print(f"Copying exercise: {template_exercise.exercise_name}")
+            session_exercise = WorkoutSessionExercise(
+                session_id=session.id,
+                exercise_name=template_exercise.exercise_name,
+                exercise_id=template_exercise.exercise_id,
+                category_id=template_exercise.category_id,  # <-- Add this line
+                order=template_exercise.order,
+                notes=template_exercise.notes,
+                target_sets=template_exercise.target_sets,
+                target_reps=template_exercise.target_reps,
+                target_weight=template_exercise.target_weight,
+                rest_time=template_exercise.rest_time
+            )
+            db.session.add(session_exercise)
+        
+        db.session.commit()
+        print(f"Exercises populated successfully for session {session.id}")
+        return True
+    return False
+
 @fitness_bp.route('/api/workout_sessions', methods=['GET'])
 @login_required
 def get_workout_sessions():
@@ -2432,10 +2597,13 @@ def create_workout_session():
     """Create a new workout session (from template or scratch)"""
     try:
         data = request.get_json()
+        print(f"Received workout session data: {data}")  # Debug log
         name = data.get('name', '').strip()
         date_str = data.get('date')
         template_id = data.get('template_id')
         notes = data.get('notes', '').strip()
+        
+        print(f"Parsed data - name: {name}, date: {date_str}, template_id: {template_id}, notes: {notes}")
         
         if not name:
             return jsonify({'error': 'Session name is required'}), 400
@@ -2445,44 +2613,57 @@ def create_workout_session():
         
         try:
             date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        except ValueError:
+            print(f"Parsed date: {date}")
+        except ValueError as e:
+            print(f"Date parsing error: {e}")
             return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
         
         # If template_id is provided, verify it exists and belongs to user
+        template = None
         if template_id:
+            print(f"Looking for template with ID: {template_id}")
             template = WorkoutTemplate.query.filter_by(id=template_id, user_id=current_user.id).first()
             if not template:
+                print(f"Template not found for ID: {template_id}")
                 return jsonify({'error': 'Template not found'}), 404
+            print(f"Found template: {template.name}")
         
-        session = WorkoutSession(
+        print(f"Creating session with user_id: {current_user.id}")
+        
+        # Check if a session with this name already exists for this user and date
+        existing_session = WorkoutSession.query.filter_by(
             user_id=current_user.id,
-            template_id=template_id,
-            name=name,
             date=date,
-            notes=notes,
-            status='planned'
-        )
+            name=name
+        ).first()
         
-        db.session.add(session)
-        db.session.commit()
-        
-        # If created from template, copy exercises
-        if template_id and template:
-            for template_exercise in template.exercises:
-                session_exercise = WorkoutSessionExercise(
-                    session_id=session.id,
-                    exercise_name=template_exercise.exercise_name,
-                    exercise_id=template_exercise.exercise_id,
-                    order=template_exercise.order,
-                    notes=template_exercise.notes,
-                    target_sets=template_exercise.target_sets,
-                    target_reps=template_exercise.target_reps,
-                    target_weight=template_exercise.target_weight,
-                    rest_time=template_exercise.rest_time
-                )
-                db.session.add(session_exercise)
+        if existing_session:
+            print(f"Session already exists with ID: {existing_session.id}")
+            session = existing_session
             
+            # If existing session has no exercises but template is provided, populate them
+            if template and not existing_session.exercises:
+                print(f"Existing session has no exercises, populating from template")
+                populate_session_exercises_from_template(session, template)
+        else:
+            session = WorkoutSession(
+                user_id=current_user.id,
+                template_id=template_id,
+                name=name,
+                date=date,
+                notes=notes,
+                status='planned'
+            )
+            
+            print(f"Adding session to database")
+            db.session.add(session)
             db.session.commit()
+            print(f"Session created with ID: {session.id}")
+            
+            # If created from template, copy exercises
+            if template_id and template:
+                print(f"Copying exercises from template")
+                populate_session_exercises_from_template(session, template)
         
         return jsonify({
             'message': 'Workout session created successfully',
@@ -2498,7 +2679,164 @@ def create_workout_session():
         }), 201
         
     except Exception as e:
+        print(f"Error creating workout session: {str(e)}")
+        import traceback
+        traceback.print_exc()
         db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@fitness_bp.route('/api/workout_sessions/<int:session_id>', methods=['GET'])
+@login_required
+def get_workout_session(session_id):
+    """Get a specific workout session with its exercises"""
+    try:
+        session = WorkoutSession.query.filter_by(id=session_id, user_id=current_user.id).first()
+        if not session:
+            return jsonify({'error': 'Session not found'}), 404
+        
+        # If session has no exercises but has a template, try to populate them
+        if not session.exercises and session.template_id:
+            template = WorkoutTemplate.query.filter_by(id=session.template_id, user_id=current_user.id).first()
+            if template:
+                print(f"Session {session_id} has no exercises, populating from template")
+                populate_session_exercises_from_template(session, template)
+                # Refresh the session object to get the new exercises
+                db.session.refresh(session)
+        
+        exercises = []
+        for exercise in session.exercises:
+            exercise_data = {
+                'id': exercise.id,
+                'exercise_name': exercise.exercise_name,
+                'exercise_id': exercise.exercise_id,
+                'category_id': exercise.category_id,  # <-- Add this line
+                'order': exercise.order,
+                'notes': exercise.notes,
+                'target_sets': exercise.target_sets,
+                'target_reps': exercise.target_reps,
+                'target_weight': exercise.target_weight,
+                'rest_time': exercise.rest_time,
+                'completed': exercise.completed
+            }
+            if exercise.exercise:
+                exercise_data['exercise'] = {
+                    'id': exercise.exercise.id,
+                    'name': exercise.exercise.name,
+                    'category': exercise.exercise.category.name if exercise.exercise.category else None
+                }
+            exercises.append(exercise_data)
+        
+        return jsonify({
+            'id': session.id,
+            'name': session.name,
+            'date': session.date.isoformat(),
+            'notes': session.notes,
+            'status': session.status,
+            'started_at': session.started_at.isoformat() if session.started_at else None,
+            'completed_at': session.completed_at.isoformat() if session.completed_at else None,
+            'created_at': session.created_at.isoformat(),
+            'template_id': session.template_id,
+            'exercises': exercises
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@fitness_bp.route('/api/workout_sessions/<int:session_id>/complete', methods=['PUT'])
+@login_required
+def complete_workout_session(session_id):
+    """Complete a workout session"""
+    try:
+        session = WorkoutSession.query.filter_by(id=session_id, user_id=current_user.id).first()
+        if not session:
+            return jsonify({'error': 'Session not found'}), 404
+        
+        session.status = 'completed'
+        session.completed_at = datetime.utcnow()
+        
+        # Calculate session statistics
+        total_exercises = len(session.exercises)
+        total_sets = 0
+        total_reps = 0
+        
+        # Get all sets for this session
+        from models import Workout
+        session_workouts = Workout.query.filter_by(
+            user_id=current_user.id,
+            date=session.date
+        ).all()
+        
+        for workout in session_workouts:
+            total_sets += workout.sets
+            total_reps += workout.reps * workout.sets
+        
+        # Calculate duration if session was started
+        duration = None
+        if session.started_at and session.completed_at:
+            duration_seconds = int((session.completed_at - session.started_at).total_seconds())
+            duration = f"{duration_seconds // 60}:{duration_seconds % 60:02d}"
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Workout session completed successfully',
+            'stats': {
+                'total_exercises': total_exercises,
+                'total_sets': total_sets,
+                'total_reps': total_reps,
+                'duration': duration
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@fitness_bp.route('/api/exercise_sets')
+@login_required
+def get_exercise_sets():
+    """Get sets for a specific exercise in a session"""
+    try:
+        exercise_id = request.args.get('exercise_id')
+        session_id = request.args.get('session_id')
+        
+        if not exercise_id or not session_id:
+            return jsonify({'error': 'exercise_id and session_id are required'}), 400
+        
+        # Get the exercise name from the session exercise
+        from models import WorkoutSessionExercise, Workout
+        session_exercise = WorkoutSessionExercise.query.filter_by(
+            session_id=session_id,
+            exercise_id=exercise_id
+        ).first()
+        
+        if not session_exercise:
+            return jsonify([])  # No exercise found, return empty list
+        
+        exercise_name = session_exercise.exercise_name
+        
+        # Get sets for this exercise from today's workouts
+        today = datetime.utcnow().date()
+        
+        sets = Workout.query.filter_by(
+            user_id=current_user.id,
+            date=today,
+            exercise=exercise_name
+        ).order_by(Workout.id).all()
+        
+        return jsonify([{
+            'id': workout.id,
+            'set_number': idx + 1,
+            'weight': workout.weight,
+            'reps': workout.reps,
+            'sets': workout.sets,
+            'date': workout.date.isoformat()
+        } for idx, workout in enumerate(sets)])
+        
+    except Exception as e:
+        print(f"Error in get_exercise_sets: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 # ============================================================================
@@ -2740,18 +3078,138 @@ def activity_miles_summary():
     except ValueError:
         return jsonify({'error': 'Invalid timeframe'}), 400
 
+    # Case-insensitive query for activity_type
     activities = Activity.query.filter(
         Activity.user_id == current_user.id,
         Activity.date >= start_date,
         Activity.miles != None,
-        Activity.activity_type.in_(['Walking', 'Running', 'Cycling'])
+        func.lower(Activity.activity_type).in_(['walking', 'running', 'cycling'])
     ).all()
 
     summary = {'Walking': 0, 'Running': 0, 'Cycling': 0}
     for a in activities:
-        if a.activity_type in summary and a.miles:
-            summary[a.activity_type] += a.miles
+        key = a.activity_type.title()
+        if key in summary and a.miles:
+            summary[key] += a.miles
 
     summary = {k: round(v, 2) for k, v in summary.items()}
 
     return jsonify({'start_date': str(start_date), 'end_date': str(now), 'summary': summary})
+
+@fitness_bp.route('/api/tdee/history')
+@login_required
+def get_tdee_history():
+    tdee_records = TDEE.query.filter_by(user_id=current_user.id).order_by(TDEE.date.desc()).limit(30).all()
+    return jsonify([
+        {
+            'id': t.id,
+            'date': t.date.strftime('%Y-%m-%d'),
+            'bmr': t.bmr,
+            'activity_calories': t.activity_calories,
+            'tdee': t.tdee,
+            'calorie_intake': t.calorie_intake,
+            'status': 'Deficit' if (t.calorie_intake or 0) < (t.tdee or 0) else 'Surplus' if (t.calorie_intake or 0) > (t.tdee or 0) else 'Maintenance'
+        }
+        for t in tdee_records
+    ])
+
+@fitness_bp.route('/api/tdee', methods=['GET'])
+@login_required
+def get_tdee_summary():
+    print(f"[TDEE API CALLED] Starting TDEE summary request")
+    today = datetime.now().date()
+    # Get the existing TDEE record without recalculating
+    tdee = TDEE.query.filter_by(user_id=current_user.id, date=today).first()
+    if not tdee:
+        # Only calculate if no record exists
+        update_tdee_for_date(current_user.id, today)
+        db.session.expire_all()  # Ensure we get the latest committed values
+        tdee = TDEE.query.filter_by(user_id=current_user.id, date=today).first()
+        if not tdee:
+            return jsonify({'error': 'Could not calculate TDEE. Please ensure your profile and stats are complete.'}), 400
+    
+    # Force refresh from database to ensure we have the latest values
+    db.session.refresh(tdee)
+    
+    # Build the response from the TDEE record fields
+    activity_multipliers = {
+        'sedentary': 1.2,
+        'light': 1.375,
+        'moderate': 1.55,
+        'active': 1.725,
+        'very_active': 1.9
+    }
+    print(f"[TDEE API RESPONSE] activity_level={tdee.activity_level}, activity_multiplier={tdee.activity_multiplier}, base_tdee={tdee.base_tdee}")
+    print(f"[TDEE API DEBUG] Full TDEE record: {tdee.__dict__}")
+    return jsonify({
+        'user_id': tdee.user_id,
+        'date': tdee.date.strftime('%Y-%m-%d'),
+        'bmr': tdee.bmr,
+        'activity_calories': tdee.activity_calories,
+        'tdee': tdee.tdee,
+        'calorie_intake': tdee.calorie_intake,
+        'activity_level': tdee.activity_level,
+        'activity_multiplier': tdee.activity_multiplier or activity_multipliers.get(tdee.activity_level, 1.375),
+        'base_tdee': tdee.base_tdee,
+        'balance': (tdee.calorie_intake or 0) - (tdee.tdee or 0),
+    })
+
+@fitness_bp.route('/api/repeat_activities', methods=['GET'])
+@login_required
+def get_repeat_activities():
+    repeats = RepeatActivity.query.filter_by(user_id=current_user.id).all()
+    return jsonify([
+        {
+            'id': r.id,
+            'activity_type': r.activity_type,
+            'duration': r.duration,
+            'intensity': r.intensity,
+            'calories': r.calories,
+            'miles': r.miles,
+            'days_of_week': r.days_of_week,
+            'start_date': r.start_date.strftime('%Y-%m-%d'),
+            'end_date': r.end_date.strftime('%Y-%m-%d') if r.end_date else None
+        }
+        for r in repeats
+    ])
+
+@fitness_bp.route('/api/repeat_activity/<int:id>', methods=['DELETE'])
+@login_required
+def delete_repeat_activity(id):
+    repeat = RepeatActivity.query.get_or_404(id)
+    if repeat.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    db.session.delete(repeat)
+    db.session.commit()
+    return jsonify({'message': 'Repeat activity deleted'})
+
+@fitness_bp.route('/api/workout_sessions/<int:session_id>/populate_exercises', methods=['POST'])
+@login_required
+def populate_session_exercises(session_id):
+    """Manually populate exercises for a session from its template"""
+    try:
+        session = WorkoutSession.query.filter_by(id=session_id, user_id=current_user.id).first()
+        if not session:
+            return jsonify({'error': 'Session not found'}), 404
+        
+        if not session.template_id:
+            return jsonify({'error': 'Session has no template to populate from'}), 400
+        
+        if session.exercises:
+            return jsonify({'error': 'Session already has exercises'}), 400
+        
+        template = WorkoutTemplate.query.filter_by(id=session.template_id, user_id=current_user.id).first()
+        if not template:
+            return jsonify({'error': 'Template not found'}), 404
+        
+        if populate_session_exercises_from_template(session, template):
+            return jsonify({
+                'message': 'Exercises populated successfully',
+                'exercise_count': len(session.exercises)
+            })
+        else:
+            return jsonify({'error': 'Failed to populate exercises'}), 500
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500

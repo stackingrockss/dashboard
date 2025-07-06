@@ -177,14 +177,19 @@ def get_tdee():
         date = datetime.strptime(date_str, '%Y-%m-%d').date()
         tdee = TDEE.query.filter_by(user_id=current_user.id, date=date).first()
         
-        # Get activities for the date to determine activity level
-        activities = Activity.query.filter_by(user_id=current_user.id, date=date).all()
+        # Get activity level from TDEE record if available, otherwise from activities
         activity_level = 'light'  # default to light
-        if activities:
-            # Use the activity level from the first activity (they should all be the same for a given date)
-            first_activity = activities[0]
-            if first_activity.activity_level:
-                activity_level = first_activity.activity_level
+        if tdee and tdee.activity_level:
+            # Use the activity level from the TDEE record (this is the manually set one)
+            activity_level = tdee.activity_level
+        else:
+            # Fall back to activity level from activities
+            activities = Activity.query.filter_by(user_id=current_user.id, date=date).all()
+            if activities:
+                # Use the activity level from the first activity (they should all be the same for a given date)
+                first_activity = activities[0]
+                if first_activity.activity_level:
+                    activity_level = first_activity.activity_level
         
         # Activity level display names
         activity_level_names = {
@@ -525,6 +530,19 @@ def populate_default_work_columns():
         print(f"Warning: Could not populate work columns: {e}")
         # This is expected when the database is being initialized
         pass
+
+# APScheduler integration for repeat activities
+# Commented out due to circular import issues
+# try:
+#     from apscheduler.schedulers.background import BackgroundScheduler
+#     from scripts.auto_log_repeat_activities import auto_log_for_all_users
+#     import os
+#     if os.environ.get('WERKZEUG_RUN_MAIN', 'true') == 'true':  # Only start in main process
+#         scheduler = BackgroundScheduler()
+#         scheduler.add_job(func=auto_log_for_all_users, trigger="cron", hour=0, minute=5)
+#         scheduler.start()
+# except Exception as e:
+#     print(f"[APScheduler] Scheduler not started: {e}")
 
 if __name__ == '__main__':
     # Start the scheduler only in the main process

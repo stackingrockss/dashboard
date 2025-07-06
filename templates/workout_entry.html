@@ -210,7 +210,14 @@
     </style>
 </head>
 <body>
-    
+    <script>
+      window.SESSION_MODE = {{ session_mode|tojson|default('false') }};
+      window.SESSION_ID = {{ session_id|tojson|default('null') }};
+      window.TEMPLATE_ID = {{ template_id|tojson|default('null') }};
+    </script>
+    <div id="session-ui" style="display: none;">
+      <!-- Session-specific UI (progress bar, navigation, etc.) will be rendered here by JS if SESSION_MODE is true -->
+    </div>
     <div class="workout-container">
         <!-- Modern Header -->
         <header class="workout-header">
@@ -552,6 +559,10 @@
         </div>
     </div>
 
-    <script src="/static/workouts.js"></script>
+    <script src="{{ url_for('static', filename='utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='shared-utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='workout-utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='event-manager.js') }}"></script>
+    <script src="{{ url_for('static', filename='workout_entry.js') }}?v=1.6"></script>
 </body>
 </html>

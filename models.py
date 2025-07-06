@@ -420,6 +420,7 @@ class WorkoutTemplateExercise(db.Model):
     template_id = db.Column(db.Integer, db.ForeignKey('workout_template.id'), nullable=False)
     exercise_name = db.Column(db.String(100), nullable=False)  # Store exercise name directly
     exercise_id = db.Column(db.Integer, db.ForeignKey('exercise.id'), nullable=True)  # Optional link to Exercise model
+    category_id = db.Column(db.Integer, db.ForeignKey('exercise_category.id'), nullable=True)
     order = db.Column(db.Integer, nullable=False, default=0)  # For ordering exercises
     notes = db.Column(db.Text, nullable=True)  # Exercise-specific notes
     target_sets = db.Column(db.Integer, nullable=True)  # Suggested number of sets
@@ -458,6 +459,7 @@ class WorkoutSessionExercise(db.Model):
     session_id = db.Column(db.Integer, db.ForeignKey('workout_session.id'), nullable=False)
     exercise_name = db.Column(db.String(100), nullable=False)  # Store exercise name directly
     exercise_id = db.Column(db.Integer, db.ForeignKey('exercise.id'), nullable=True)  # Optional link to Exercise model
+    category_id = db.Column(db.Integer, db.ForeignKey('exercise_category.id'), nullable=True)
     order = db.Column(db.Integer, nullable=False, default=0)  # For ordering exercises
     notes = db.Column(db.Text, nullable=True)  # Exercise-specific notes
     target_sets = db.Column(db.Integer, nullable=True)  # Planned number of sets
@@ -564,3 +566,16 @@ class DistanceMilestone(db.Model):
     def is_completed(self):
         """Check if milestone is completed"""
         return self.completed_distance >= self.trail_distance
+
+class RepeatActivity(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    activity_type = db.Column(db.String(64), nullable=False)
+    duration = db.Column(db.Float, nullable=False)
+    intensity = db.Column(db.String(32), nullable=False)
+    calories = db.Column(db.Float, nullable=True)
+    miles = db.Column(db.Float, nullable=True)
+    days_of_week = db.Column(db.String(32), nullable=False)  # e.g., "Mon,Wed,Fri"
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=True)
+    # Optionally: add more fields (e.g., notes)

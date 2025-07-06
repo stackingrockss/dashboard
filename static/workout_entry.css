@@ -1293,4 +1293,367 @@ body {
         padding: 8px 12px;
         font-size: 0.8rem;
     }
+}
+
+/* Session UI Styles */
+.workout-session-container {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 32px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.session-header {
+    text-align: center;
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 2px solid rgba(102, 126, 234, 0.1);
+}
+
+.session-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.session-info {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.exercise-progress {
+    margin-bottom: 32px;
+    text-align: center;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 12px;
+    position: relative;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+    position: relative;
+}
+
+.progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.progress-text {
+    font-weight: 600;
+    color: #667eea;
+    font-size: 0.9rem;
+}
+
+.exercise-navigation {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    gap: 16px;
+}
+
+.exercise-navigation button {
+    flex: 1;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.exercise-navigation button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f5f5f5;
+    color: #999;
+}
+
+.exercise-navigation button:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.current-exercise {
+    text-align: center;
+    margin-bottom: 32px;
+    padding: 24px;
+    background: rgba(102, 126, 234, 0.05);
+    border-radius: 16px;
+    border: 1px solid rgba(102, 126, 234, 0.1);
+}
+
+.current-exercise h2 {
+    margin: 0 0 8px 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #333;
+}
+
+.exercise-order {
+    margin: 0;
+    color: #667eea;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.set-logging-section {
+    margin-bottom: 32px;
+}
+
+.set-logging-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.set-logging-header h3 {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.set-logging-form {
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+    border: 1px solid rgba(102, 126, 234, 0.1);
+}
+
+.set-logging-form .form-group {
+    margin-bottom: 20px;
+}
+
+.set-logging-form .form-group:last-child {
+    margin-bottom: 0;
+}
+
+.set-logging-form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+}
+
+.set-logging-form .input-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.set-logging-form .input-group button {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(102, 126, 234, 0.1);
+    color: #667eea;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.set-logging-form .input-group button:hover {
+    background: rgba(102, 126, 234, 0.2);
+    transform: scale(1.05);
+}
+
+.set-logging-form .form-control {
+    flex: 1;
+    height: 40px;
+    padding: 0 12px;
+    border: 2px solid rgba(102, 126, 234, 0.2);
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.set-logging-form .form-control:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+#log-set-btn {
+    width: 100%;
+    padding: 14px 24px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 16px;
+}
+
+#log-set-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+#session-sets-table {
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid rgba(102, 126, 234, 0.1);
+}
+
+#session-sets-table .table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#session-sets-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 2px solid rgba(102, 126, 234, 0.1);
+}
+
+#session-sets-table td {
+    padding: 12px;
+    border-bottom: 1px solid rgba(102, 126, 234, 0.05);
+}
+
+#session-sets-table tr:hover {
+    background: rgba(102, 126, 234, 0.02);
+}
+
+.session-actions {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-top: 32px;
+}
+
+.session-actions button {
+    padding: 14px 32px;
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+#complete-workout-btn {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+}
+
+#complete-workout-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
+}
+
+#cancel-workout-btn {
+    background: linear-gradient(135deg, #dc3545, #e74c3c);
+    color: white;
+}
+
+#cancel-workout-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(220, 53, 69, 0.4);
+}
+
+/* Responsive Design for Session UI */
+@media (max-width: 768px) {
+    .workout-session-container {
+        margin: 16px;
+        padding: 24px;
+    }
+    
+    .session-title {
+        font-size: 1.6rem;
+    }
+    
+    .current-exercise h2 {
+        font-size: 1.4rem;
+    }
+    
+    .exercise-navigation {
+        flex-direction: column;
+    }
+    
+    .session-actions {
+        flex-direction: column;
+    }
+    
+    .session-actions button {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .workout-session-container {
+        margin: 8px;
+        padding: 16px;
+    }
+    
+    .session-title {
+        font-size: 1.4rem;
+    }
+    
+    .current-exercise {
+        padding: 16px;
+    }
+    
+    .current-exercise h2 {
+        font-size: 1.2rem;
+    }
+    
+    .set-logging-form {
+        padding: 16px;
+    }
+    
+    #session-sets-table {
+        padding: 16px;
+    }
+    
+    #session-sets-table th,
+    #session-sets-table td {
+        padding: 8px;
+        font-size: 0.9rem;
+    }
 } 

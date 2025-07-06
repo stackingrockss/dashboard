@@ -1,4 +1,9 @@
 import { showSnack } from './utils.js';
+import {
+    getQueryParam, initAudio, playSound, timerManager, storageManager,
+    modalManager, formatTime
+} from './shared-utils.js';
+import { eventManager } from './event-manager.js';
 
 // Profile and Settings Management
 class ProfileManager {
@@ -143,6 +148,11 @@ class ProfileManager {
             
             // Reload profile data
             await this.loadProfileData();
+            
+            // Refresh dashboard stats if weight was updated
+            if (data.weight && window.refreshDashboardStats) {
+                window.refreshDashboardStats();
+            }
         } catch (error) {
             console.error('Error updating profile:', error);
             this.showMessage('Error updating profile', 'error');
@@ -242,25 +252,7 @@ class ProfileManager {
     }
 
     showMessage(message, type = 'success') {
-        // Remove existing messages
-        const existingMessages = document.querySelectorAll('.message');
-        existingMessages.forEach(msg => msg.remove());
-
-        // Create new message
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${type}`;
-        messageDiv.textContent = message;
-
-        // Insert at the top of the container
-        const container = document.querySelector('.profile-container');
-        container.insertBefore(messageDiv, container.firstChild);
-
-        // Auto-remove after 5 seconds
-        setTimeout(() => {
-            if (messageDiv.parentNode) {
-                messageDiv.remove();
-            }
-        }, 5000);
+        showSnack(message, type);
     }
 
     // Apply theme based on settings

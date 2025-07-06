@@ -1,4 +1,4 @@
-export function showSnack(message, type = 'success') {
+function showSnack(message, type = 'success') {
     const snackbar = document.createElement('div');
     snackbar.className = `snackbar ${type}`;
     snackbar.textContent = message;
@@ -8,7 +8,7 @@ export function showSnack(message, type = 'success') {
     }, 3000);
 }
 
-export function clean_nutrient_value(value) {
+function clean_nutrient_value(value) {
     if (value === null || value === undefined || ['N/A', '--', ''].includes(String(value).trim())) {
         return null;
     }
@@ -19,7 +19,7 @@ export function clean_nutrient_value(value) {
     }
 }
 
-export function convert_units(quantity, from_unit, to_unit) {
+function convert_units(quantity, from_unit, to_unit) {
     const conversions = {
         'g': 1.0,
         'oz': 28.3495,

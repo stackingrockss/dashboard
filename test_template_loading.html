@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout Template Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .workout-template-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            background: #f8f9fa;
+            transition: all 0.2s ease;
+        }
+        .template-info h4 {
+            margin: 0 0 4px 0;
+            color: #333;
+            font-size: 1.1em;
+        }
+        .template-info p {
+            margin: 0;
+            color: #666;
+            font-size: 0.9em;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        #test-results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Workout Template Loading Test</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Function Definition</h2>
+        <p>Check if the loadWorkoutTemplatesAndDisplay function is defined:</p>
+        <button onclick="testFunctionDefinition()">Test Function Definition</button>
+        <div id="function-test-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 2: Template List Element</h2>
+        <p>Check if the workout-template-list element exists:</p>
+        <div id="workout-template-list" style="max-height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; padding: 12px;">
+            <p style="text-align: center; color: #666;">Test template list element</p>
+        </div>
+        <button onclick="testTemplateListElement()">Test Template List Element</button>
+        <div id="element-test-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 3: Mock API Response</h2>
+        <p>Test with mock data to simulate API response:</p>
+        <button onclick="testWithMockData()">Test with Mock Data</button>
+        <div id="mock-test-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 4: Error Handling</h2>
+        <p>Test error handling when API fails:</p>
+        <button onclick="testErrorHandling()">Test Error Handling</button>
+        <div id="error-test-result"></div>
+    </div>
+    
+    <div id="test-results">
+        <h3>Test Results</h3>
+        <div id="results-content"></div>
+    </div>
+
+    <script>
+        // Mock the loadWorkoutTemplates function for testing
+        async function loadWorkoutTemplates() {
+            // Simulate API call
+            return new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    // Simulate successful response
+                    resolve([
+                        {
+                            id: 1,
+                            name: "Sample Push Day",
+                            description: "A sample push workout",
+                            notes: "Test template",
+                            is_public: false,
+                            created_at: "2024-01-15T10:30:00",
+                            updated_at: "2024-01-15T10:30:00",
+                            exercise_count: 3
+                        },
+                        {
+                            id: 2,
+                            name: "Leg Day",
+                            description: "Lower body workout",
+                            notes: "Focus on squats and deadlifts",
+                            is_public: false,
+                            created_at: "2024-01-14T09:15:00",
+                            updated_at: "2024-01-14T09:15:00",
+                            exercise_count: 4
+                        }
+                    ]);
+                }, 1000);
+            });
+        }
+
+        // Mock the loadWorkoutTemplates function for error testing
+        async function loadWorkoutTemplatesError() {
+            return new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    reject(new Error("API Error: Network timeout"));
+                }, 500);
+            });
+        }
+
+        // The function we're testing (copied from workouts.js)
+        async function loadWorkoutTemplatesAndDisplay() {
+            const templateList = document.getElementById('workout-template-list');
+            if (!templateList) {
+                console.error('Template list element not found');
+                return;
+            }
+            
+            try {
+                templateList.innerHTML = '<p style="text-align: center; color: #666;">Loading templates...</p>';
+                
+                const templates = await loadWorkoutTemplates();
+                
+                if (templates.length === 0) {
+                    templateList.innerHTML = '<p style="text-align: center; color: #666;">No saved workout templates found. Create your first template above!</p>';
+                    return;
+                }
+                
+                templateList.innerHTML = '';
+                templates.forEach(template => {
+                    const templateItem = document.createElement('div');
+                    templateItem.className = 'workout-template-item';
+                    templateItem.innerHTML = `
+                        <div class="template-info">
+                            <h4>${template.name}</h4>
+                            <p>${template.exercise_count} exercises • Created ${new Date(template.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <button onclick="selectWorkoutTemplate(${template.id})" class="btn btn-primary">
+                            Start Workout
+                        </button>
+                    `;
+                    templateList.appendChild(templateItem);
+                });
+            } catch (error) {
+                console.error('Error loading workout templates:', error);
+                templateList.innerHTML = '<p style="text-align: center; color: red;">Error loading templates. Please try again.</p>';
+            }
+        }
+
+        // Test functions
+        function testFunctionDefinition() {
+            const result = document.getElementById('function-test-result');
+            if (typeof loadWorkoutTemplatesAndDisplay === 'function') {
+                result.innerHTML = '<p style="color: green;">✅ Function is defined correctly</p>';
+                addResult('Function Definition', 'PASS');
+            } else {
+                result.innerHTML = '<p style="color: red;">❌ Function is not defined</p>';
+                addResult('Function Definition', 'FAIL');
+            }
+        }
+
+        function testTemplateListElement() {
+            const result = document.getElementById('element-test-result');
+            const templateList = document.getElementById('workout-template-list');
+            if (templateList) {
+                result.innerHTML = '<p style="color: green;">✅ Template list element exists</p>';
+                addResult('Template List Element', 'PASS');
+            } else {
+                result.innerHTML = '<p style="color: red;">❌ Template list element not found</p>';
+                addResult('Template List Element', 'FAIL');
+            }
+        }
+
+        async function testWithMockData() {
+            const result = document.getElementById('mock-test-result');
+            result.innerHTML = '<p>Testing with mock data...</p>';
+            
+            try {
+                await loadWorkoutTemplatesAndDisplay();
+                result.innerHTML = '<p style="color: green;">✅ Mock data loaded successfully</p>';
+                addResult('Mock Data Test', 'PASS');
+            } catch (error) {
+                result.innerHTML = `<p style="color: red;">❌ Error: ${error.message}</p>`;
+                addResult('Mock Data Test', 'FAIL');
+            }
+        }
+
+        async function testErrorHandling() {
+            const result = document.getElementById('error-test-result');
+            result.innerHTML = '<p>Testing error handling...</p>';
+            
+            // Temporarily replace the function to simulate error
+            const originalLoadFunction = loadWorkoutTemplates;
+            loadWorkoutTemplates = loadWorkoutTemplatesError;
+            
+            try {
+                await loadWorkoutTemplatesAndDisplay();
+                result.innerHTML = '<p style="color: red;">❌ Error handling failed - should have shown error message</p>';
+                addResult('Error Handling', 'FAIL');
+            } catch (error) {
+                result.innerHTML = '<p style="color: green;">✅ Error handling works correctly</p>';
+                addResult('Error Handling', 'PASS');
+            } finally {
+                // Restore original function
+                loadWorkoutTemplates = originalLoadFunction;
+            }
+        }
+
+        function selectWorkoutTemplate(templateId) {
+            alert(`Template ${templateId} selected!`);
+        }
+
+        function addResult(testName, status) {
+            const resultsContent = document.getElementById('results-content');
+            const resultDiv = document.createElement('div');
+            resultDiv.innerHTML = `<p><strong>${testName}:</strong> <span style="color: ${status === 'PASS' ? 'green' : 'red'}">${status}</span></p>`;
+            resultsContent.appendChild(resultDiv);
+        }
+
+        // Auto-run tests on page load
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                testFunctionDefinition();
+                testTemplateListElement();
+            }, 100);
+        });
+    </script>
+</body>
+</html> 

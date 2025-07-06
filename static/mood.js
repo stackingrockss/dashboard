@@ -1,4 +1,4 @@
-import { showSnack } from './utils.js';
+// Functions are now available globally from utility files
 
 // --- Mood/Motivation Logic ---
 // (Moved from fitness.js)

@@ -1,4 +1,4 @@
-import { showSnack } from './utils.js';
+// Functions are now available globally from utility files
 
 document.addEventListener('DOMContentLoaded', function() {
     // Modal setup
