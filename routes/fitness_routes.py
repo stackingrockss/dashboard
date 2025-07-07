@@ -153,7 +153,7 @@ def calculate_tdee_for_date(user_id, date, save_to_db=False, activity_level=None
                     activity_level=tdee_data['activity_level'],
                     activity_multiplier=tdee_data['activity_multiplier'],
                     base_tdee=tdee_data['base_tdee']
-                )
+                )  # noqa: E999 Linter: All parameters are valid for TDEE model (see models.py)
                 db.session.add(tdee)
             db.session.commit()
             return tdee
@@ -508,6 +508,10 @@ def add_workout():
             pr_type='reps'
         ).first()
         
+        # Calculate total_weight (barbell logic: if 'Barbell' in exercise name, add 45)
+        is_barbell = 'barbell' in exercise_name.lower()
+        total_weight = weight + 45 if is_barbell else weight
+        
         workout = Workout(
             user_id=current_user.id,
             date=date,
@@ -515,13 +519,14 @@ def add_workout():
             category=data.get('category'),
             weight=weight,
             reps=reps,
-            sets=sets
+            sets=sets,
+            total_weight=total_weight
         )
         db.session.add(workout)
         db.session.commit()
         
         # Update PRs
-        update_prs_for_workout(current_user.id, exercise_name, weight, reps, sets, workout.id, date)
+        update_prs_for_workout(current_user.id, exercise_name, weight, reps, sets, workout.id, date, total_weight)
         
         # Check which PRs were newly achieved
         new_prs = []
@@ -536,6 +541,7 @@ def add_workout():
             'prs_achieved': new_prs,
             'exercise': exercise_name,
             'weight': weight,
+            'total_weight': total_weight,
             'reps': reps
         })
     except Exception as e:
@@ -1148,7 +1154,8 @@ def get_workouts_by_date():
                 'category_id': category_id,
                 'weight': w.weight,
                 'reps': w.reps,
-                'sets': w.sets
+                'sets': w.sets,
+                'total_weight': w.total_weight  # Add total_weight
             }
             
             workout_data['prs_achieved'] = get_prs_achieved(current_user.id, w.exercise, w.weight, w.reps, w.sets, w.id)
@@ -1566,11 +1573,16 @@ def get_personal_records():
 @fitness_bp.route('/api/personal_records/<exercise>')
 @login_required
 def get_exercise_prs(exercise):
+    print(f"DEBUG: get_exercise_prs called with exercise='{exercise}' for user_id={current_user.id}")
     prs = PersonalRecord.query.filter_by(user_id=current_user.id, exercise=exercise).all()
+    if not prs:
+        return jsonify({'error': f'No personal records found for exercise: {exercise}'}), 404
+    is_barbell = 'barbell' in exercise.lower()
     return jsonify([
         {
             'pr_type': pr.pr_type,
             'value': pr.value,
+            'label': 'Total Weight' if is_barbell and pr.pr_type == 'weight' else pr.pr_type.capitalize(),
             'date_achieved': pr.date_achieved.strftime('%Y-%m-%d'),
             'workout_id': pr.workout_id
         } for pr in prs
@@ -1588,11 +1600,12 @@ def get_prs_achieved(user_id, exercise, weight, reps, sets, workout_id):
 
 # Minimal PR update function
 
-def update_prs_for_workout(user_id, exercise, weight, reps, sets, workout_id, date):
+def update_prs_for_workout(user_id, exercise, weight, reps, sets, workout_id, date, total_weight):
     from models import PersonalRecord
     # Weight PR
+    pr_weight_value = total_weight if 'barbell' in exercise.lower() else weight
     pr_weight = PersonalRecord.query.filter_by(user_id=user_id, exercise=exercise, pr_type='weight').first()
-    if not pr_weight or weight > pr_weight.value:
+    if not pr_weight or pr_weight_value > pr_weight.value:
         if pr_weight:
             db.session.delete(pr_weight)
             db.session.flush()  # Ensure deletion is processed
@@ -1600,7 +1613,7 @@ def update_prs_for_workout(user_id, exercise, weight, reps, sets, workout_id, da
             user_id=user_id,
             exercise=exercise,
             pr_type='weight',
-            value=weight,
+            value=pr_weight_value,  # Store total_weight for barbell, weight for others
             weight=weight,
             reps=reps,
             sets=sets,
@@ -1631,28 +1644,25 @@ def update_prs_for_workout(user_id, exercise, weight, reps, sets, workout_id, da
 def recalculate_prs_for_exercise(user_id, exercise):
     """Recalculate PRs for an exercise after a workout is deleted or modified."""
     from models import PersonalRecord, Workout
-    
     # Get all workouts for this user and exercise
     workouts = Workout.query.filter_by(user_id=user_id, exercise=exercise).order_by(Workout.date.desc()).all()
-    
     # Delete existing PRs for this exercise
     PersonalRecord.query.filter_by(user_id=user_id, exercise=exercise).delete()
     db.session.flush()
-    
     # Find the best weight and reps
+    is_barbell = 'barbell' in exercise.lower()
     best_weight = 0
     best_reps = 0
     best_weight_workout = None
     best_reps_workout = None
-    
     for workout in workouts:
-        if workout.weight > best_weight:
-            best_weight = workout.weight
+        weight_value = workout.total_weight if is_barbell else workout.weight
+        if weight_value > best_weight:
+            best_weight = weight_value
             best_weight_workout = workout
         if workout.reps > best_reps:
             best_reps = workout.reps
             best_reps_workout = workout
-    
     # Create new PRs if we found better values
     if best_weight_workout:
         weight_pr = PersonalRecord(
@@ -1660,14 +1670,13 @@ def recalculate_prs_for_exercise(user_id, exercise):
             exercise=exercise,
             pr_type='weight',
             value=best_weight,
-            weight=best_weight,
+            weight=best_weight_workout.weight,
             reps=best_weight_workout.reps,
             sets=best_weight_workout.sets,
             date_achieved=best_weight_workout.date,
             workout_id=best_weight_workout.id
         )
         db.session.add(weight_pr)
-    
     if best_reps_workout:
         reps_pr = PersonalRecord(
             user_id=user_id,
@@ -1681,7 +1690,6 @@ def recalculate_prs_for_exercise(user_id, exercise):
             workout_id=best_reps_workout.id
         )
         db.session.add(reps_pr)
-    
     db.session.commit()
 
 # Fasting routes
@@ -2799,6 +2807,9 @@ def get_exercise_sets():
     try:
         exercise_id = request.args.get('exercise_id')
         session_id = request.args.get('session_id')
+        exercise_name = request.args.get('exercise_name')
+        
+        print(f"DEBUG: get_exercise_sets called with exercise_id={exercise_id}, session_id={session_id}, exercise_name={exercise_name}")
         
         if not exercise_id or not session_id:
             return jsonify({'error': 'exercise_id and session_id are required'}), 400
@@ -2810,28 +2821,54 @@ def get_exercise_sets():
             exercise_id=exercise_id
         ).first()
         
+        print(f"DEBUG: Found session_exercise by exercise_id: {session_exercise}")
+        
         if not session_exercise:
-            return jsonify([])  # No exercise found, return empty list
+            # Try to find by exercise name if exercise_id is not found
+            session_exercise = WorkoutSessionExercise.query.filter_by(
+                session_id=session_id,
+                exercise_name=exercise_name or ''
+            ).first()
+            
+            print(f"DEBUG: Found session_exercise by exercise_name: {session_exercise}")
+            
+            if not session_exercise:
+                print(f"DEBUG: No session exercise found, returning empty list")
+                return jsonify([])  # No exercise found, return empty list
         
         exercise_name = session_exercise.exercise_name
+        print(f"DEBUG: Using exercise_name: {exercise_name}")
         
-        # Get sets for this exercise from today's workouts
-        today = datetime.utcnow().date()
+        # Get the session to find its date
+        session = WorkoutSession.query.get(session_id)
+        if not session:
+            print(f"DEBUG: Session {session_id} not found")
+            return jsonify([])
+        
+        # Get sets for this exercise from the session's date
+        session_date = session.date
+        print(f"DEBUG: Looking for workouts on session date: {session_date}")
         
         sets = Workout.query.filter_by(
             user_id=current_user.id,
-            date=today,
+            date=session_date,
             exercise=exercise_name
         ).order_by(Workout.id).all()
         
-        return jsonify([{
+        print(f"DEBUG: Found {len(sets)} sets for {exercise_name} on {session_date}")
+        
+        result = [{
             'id': workout.id,
             'set_number': idx + 1,
             'weight': workout.weight,
             'reps': workout.reps,
             'sets': workout.sets,
-            'date': workout.date.isoformat()
-        } for idx, workout in enumerate(sets)])
+            'date': workout.date.isoformat(),
+            'total_weight': workout.total_weight  # Add total_weight
+        } for idx, workout in enumerate(sets)]
+        
+        print(f"DEBUG: Returning {len(result)} sets")
+        return jsonify(result)
         
     except Exception as e:
         print(f"Error in get_exercise_sets: {str(e)}")
@@ -2858,10 +2895,10 @@ def get_todays_workout():
         for workout in workouts:
             workout_data.append({
                 'id': workout.id,
-                'category_name': workout.category_name,
-                'exercise_name': workout.exercise_name,
-                'set_number': workout.set_number,
-                'total_weight': workout.total_weight,
+                'category_name': workout.category or 'Unknown',
+                'exercise_name': workout.exercise,
+                'set_number': workout.sets,
+                'total_weight': workout.weight,
                 'reps': workout.reps,
                 'date': workout.date.isoformat()
             })
@@ -2882,11 +2919,11 @@ def get_workout_history():
             workout_data.append({
                 'id': workout.id,
                 'date': workout.date.isoformat(),
-                'category_name': workout.category_name,
-                'exercise_name': workout.exercise_name,
-                'weight': workout.total_weight,
+                'category_name': workout.category or 'Unknown',
+                'exercise_name': workout.exercise,
+                'weight': workout.weight,
                 'reps': workout.reps,
-                'sets': workout.set_number
+                'sets': workout.sets
             })
         
         return jsonify(workout_data)
@@ -2961,41 +2998,39 @@ def log_set():
         exercise = data.get('exercise')
         weight = data.get('weight')
         reps = data.get('reps')
-        is_barbell = data.get('is_barbell', False)  # New field to indicate if it's a barbell exercise
-        
-        if not all([category_id, exercise, weight, reps]):
-            return jsonify({'error': 'All fields are required'}), 400
-        
-        # Get the next set number for today
-        today = datetime.now().date()
+        # Always recalculate is_barbell on backend
+        is_barbell = 'barbell' in exercise.lower() if exercise else False
+        if not all([exercise, weight, reps]):
+            return jsonify({'error': 'exercise, weight, and reps are required'}), 400
+        session_id = data.get('session_id')
+        if not session_id:
+            return jsonify({'error': 'session_id is required'}), 400
+        from models import WorkoutSession
+        session = WorkoutSession.query.get(session_id)
+        if not session:
+            return jsonify({'error': 'Session not found'}), 404
+        session_date = session.date
+        print(f"DEBUG: Logging set for session date: {session_date}")
         last_set = Workout.query.filter_by(
             user_id=current_user.id,
             exercise=exercise,
-            date=today
+            date=session_date
         ).order_by(Workout.sets.desc()).first()
-        
         set_number = (last_set.sets + 1) if last_set else 1
-        
         # Calculate total weight for barbell exercises
-        total_weight = weight
-        if is_barbell:
-            total_weight = weight + 45  # Standard barbell weight
-        
-        # Create the workout entry
+        total_weight = weight + 45 if is_barbell else weight
         workout = Workout(
             user_id=current_user.id,
             category=category_id,
             exercise=exercise,
             sets=set_number,
-            weight=weight,  # Store the user's weight (plates only)
+            weight=weight,
             reps=reps,
-            date=today
+            date=session_date,
+            total_weight=total_weight
         )
-        
         db.session.add(workout)
         db.session.commit()
-        
-        # Check current PRs before adding the workout
         current_weight_pr = PersonalRecord.query.filter_by(
             user_id=current_user.id, 
             exercise=exercise, 
@@ -3006,18 +3041,14 @@ def log_set():
             exercise=exercise, 
             pr_type='reps'
         ).first()
-        
         # Update PRs (use total weight for barbell exercises)
-        pr_weight = total_weight if is_barbell else weight
-        update_prs_for_workout(current_user.id, exercise, pr_weight, reps, 1, workout.id, today)
-        
-        # Check which PRs were newly achieved
+        update_prs_for_workout(current_user.id, exercise, weight, reps, 1, workout.id, session_date, total_weight)
         new_prs = []
+        pr_weight = total_weight if is_barbell else weight
         if (not current_weight_pr or pr_weight > current_weight_pr.value):
             new_prs.append('weight')
         if (not current_reps_pr or reps > current_reps_pr.value):
             new_prs.append('reps')
-        
         return jsonify({
             'id': workout.id,
             'set_number': workout.sets,
@@ -3027,7 +3058,6 @@ def log_set():
             'date': workout.date.isoformat(),
             'prs_achieved': new_prs
         }), 201
-        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -3041,8 +3071,20 @@ def delete_set(set_id):
         if not workout:
             return jsonify({'error': 'Set not found'}), 404
         
+        exercise_name = workout.exercise  # Save before deleting
         db.session.delete(workout)
         db.session.commit()
+        
+        # Remove orphaned PRs (whose workout_id no longer exists)
+        from models import PersonalRecord, Workout
+        orphaned_prs = PersonalRecord.query.filter_by(user_id=current_user.id, exercise=exercise_name).all()
+        for pr in orphaned_prs:
+            if pr.workout_id is not None and not Workout.query.filter_by(id=pr.workout_id).first():
+                db.session.delete(pr)
+        db.session.commit()
+        
+        # Recalculate PRs for this exercise
+        recalculate_prs_for_exercise(current_user.id, exercise_name)
         
         return jsonify({'message': 'Set deleted successfully'})
         
@@ -3212,4 +3254,27 @@ def populate_session_exercises(session_id):
         
     except Exception as e:
         db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@fitness_bp.route('/api/last_workout/<exercise_name>')
+@login_required
+def get_last_workout(exercise_name):
+    """Get the last workout for a specific exercise"""
+    try:
+        # Find the most recent workout for this exercise
+        last_workout = Workout.query.filter_by(
+            user_id=current_user.id,
+            exercise=exercise_name
+        ).order_by(Workout.date.desc(), Workout.id.desc()).first()
+        
+        if not last_workout:
+            return jsonify({'error': 'No previous workout found for this exercise'}), 404
+        
+        return jsonify({
+            'weight': last_workout.weight,
+            'reps': last_workout.reps,
+            'date': last_workout.date.strftime('%Y-%m-%d')
+        })
+        
+    except Exception as e:
         return jsonify({'error': str(e)}), 500

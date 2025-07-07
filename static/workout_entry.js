@@ -123,29 +123,30 @@ async function loadSetsTable() {
         const setsTableBody = document.getElementById('sets-table').querySelector('tbody');
         setsTableBody.innerHTML = '';
         
+        // Update table header to include Total Weight
+        const setsTableHead = document.getElementById('sets-table').querySelector('thead tr');
+        if (setsTableHead && setsTableHead.children.length < 5) {
+            setsTableHead.innerHTML = `
+                <th>Set</th>
+                <th>Weight</th>
+                <th>Total Weight</th>
+                <th>Reps</th>
+                <th>Actions</th>
+            `;
+        }
+        
         sets.forEach((set, idx) => {
             const row = document.createElement('tr');
-            const totalWeight = calculateTotalWeight(set.weight);
-            
-            // Create weight display with barbell info
-            let weightDisplay = `${set.weight} lbs`;
-            if (isBarbellExercise) {
-                weightDisplay = `
-                    <div class="weight-breakdown">
-                        <div class="user-weight">+${set.weight} lbs</div>
-                        <div class="total-weight">${totalWeight} lbs</div>
-                        <small class="barbell-note">(+45 barbell)</small>
-                    </div>
-                `;
-            }
-            
+            // Use total_weight from backend if available, else calculate
+            let totalWeight = set.total_weight !== undefined ? set.total_weight : calculateTotalWeight(set.weight);
             row.innerHTML = `
                 <td>
                     <div class="set-number">
                         ${idx + 1} ${set.prs_achieved && set.prs_achieved.length > 0 ? '🏆' : ''}
                     </div>
                 </td>
-                <td>${weightDisplay}</td>
+                <td>${set.weight} lbs</td>
+                <td>${totalWeight} lbs</td>
                 <td>${set.reps}</td>
                 <td>
                     <div class="action-group">
@@ -310,14 +311,47 @@ if (weightInput) {
     weightInput.addEventListener('input', updateTotalWeight);
 }
 
-// Initial load
-loadSetsTable();
-loadPersonalRecords();
-checkIfBarbellExercise();
-// Load defaults after a short delay to ensure exercise data is loaded
-setTimeout(() => {
-    loadLastWorkoutDefaults();
-}, 500);
+// Rest Timer Functionality - Using shared timerManager
+const restTimerDisplay = document.getElementById('rest-timer-display');
+const startTimerBtn = document.getElementById('start-timer');
+const pauseTimerBtn = document.getElementById('pause-timer');
+const resetTimerBtn = document.getElementById('reset-timer');
+
+// --- Rest Timer State ---
+let restDuration = 60; // default rest duration in seconds
+let restTimeLeft = restDuration;
+let restIntervalActive = false;
+
+// Initialize timer display
+updateRestTimerDisplay();
+
+// --- SESSION MODE LOGIC ---
+const SESSION_MODE = typeof window.SESSION_MODE !== 'undefined' ? window.SESSION_MODE : false;
+const SESSION_ID = typeof window.SESSION_ID !== 'undefined' ? window.SESSION_ID : null;
+const TEMPLATE_ID = typeof window.TEMPLATE_ID !== 'undefined' ? window.TEMPLATE_ID : null;
+
+// Session state variables
+let currentSession = null;
+let currentExerciseIndex = 0;
+let currentExercise = null;
+let exerciseSets = [];
+
+if (SESSION_MODE && SESSION_ID) {
+    // Hide manual entry UI
+    document.querySelector('.workout-container').style.display = 'none';
+    // Show session UI
+    document.getElementById('session-ui').style.display = 'block';
+    // Load and render session
+    loadAndRenderSession(SESSION_ID);
+} else {
+    // Only run initial load for manual mode
+    loadSetsTable();
+    loadPersonalRecords();
+    // Load defaults after a short delay to ensure exercise data is loaded
+    setTimeout(() => {
+        loadLastWorkoutDefaults();
+    }, 500);
+}
 
 tabTrack.addEventListener('click', () => {
     setActiveTab(tabTrack);
@@ -615,17 +649,6 @@ async function loadLastWorkoutDefaults() {
     }
 }
 
-// Rest Timer Functionality - Using shared timerManager
-const restTimerDisplay = document.getElementById('rest-timer-display');
-const startTimerBtn = document.getElementById('start-timer');
-const pauseTimerBtn = document.getElementById('pause-timer');
-const resetTimerBtn = document.getElementById('reset-timer');
-
-// --- Rest Timer State ---
-let restDuration = 60; // default rest duration in seconds
-let restTimeLeft = restDuration;
-let restIntervalActive = false;
-
 function updateRestTimerDisplay() {
     if (restTimerDisplay) {
         restTimerDisplay.textContent = formatTime(restTimeLeft);
@@ -668,29 +691,6 @@ if (resetTimerBtn) {
     resetTimerBtn.addEventListener('click', resetRestTimer);
 }
 
-// Initialize timer display
-updateRestTimerDisplay();
-
-// --- SESSION MODE LOGIC ---
-const SESSION_MODE = typeof window.SESSION_MODE !== 'undefined' ? window.SESSION_MODE : false;
-const SESSION_ID = typeof window.SESSION_ID !== 'undefined' ? window.SESSION_ID : null;
-const TEMPLATE_ID = typeof window.TEMPLATE_ID !== 'undefined' ? window.TEMPLATE_ID : null;
-
-// Session state variables
-let currentSession = null;
-let currentExerciseIndex = 0;
-let currentExercise = null;
-let exerciseSets = [];
-
-if (SESSION_MODE && SESSION_ID) {
-    // Hide manual entry UI
-    document.querySelector('.workout-container').style.display = 'none';
-    // Show session UI
-    document.getElementById('session-ui').style.display = 'block';
-    // Load and render session
-    loadAndRenderSession(SESSION_ID);
-}
-
 async function loadAndRenderSession(sessionId) {
     try {
         const resp = await fetch(`/fitness/api/workout_sessions/${sessionId}`);
@@ -729,11 +729,25 @@ function renderSessionUI(session) {
 
     let html = `
         <div class='workout-session-container'>
-            <div class='session-header'>
-                <div class='session-title'>${session.name}</div>
-                <div class='session-info'>Date: ${session.date} | Status: ${session.status}</div>
-            </div>
-            
+            <!-- Modern Header -->
+            <header class='workout-header'>
+                <div class='header-content'>
+                    <div class='header-left'>
+                        <a href="/#activity?tab=workouts" class='back-btn'>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 12H5M12 19l-7-7 7-7"/>
+                            </svg>
+                            Back
+                        </a>
+                    </div>
+                    <div class='header-center'>
+                        <h1 class='page-title'>${session.name}</h1>
+                        <p class='session-info'>Date: ${session.date} | Status: ${session.status}</p>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Progress Bar -->
             <div class='exercise-progress'>
                 <div class='progress-bar'>
                     <div class='progress-fill' style='width: ${(currentExerciseIndex / session.exercises.length) * 100}%'></div>
@@ -741,6 +755,7 @@ function renderSessionUI(session) {
                 <div class='progress-text'>Exercise ${currentExerciseIndex + 1} of ${session.exercises.length}</div>
             </div>
             
+            <!-- Exercise Navigation -->
             <div class='exercise-navigation'>
                 <button id='prev-exercise' class='btn btn-secondary' ${currentExerciseIndex === 0 ? 'disabled' : ''}>
                     ← Previous
@@ -752,48 +767,205 @@ function renderSessionUI(session) {
             
             <div id='current-exercise-display'></div>
             
-            <div id='set-logging-section' style='display: none;'>
-                <div class='set-logging-header'>
-                    <h3>Log Sets for <span id='current-exercise-name'></span></h3>
-                </div>
-                
-                <div class='set-logging-form'>
-                    <div class='form-group'>
-                        <label for='session-weight'>Weight (lbs)</label>
-                        <div class='input-group'>
-                            <button type='button' id='session-weight-minus' class='btn btn-sm'>-</button>
-                            <input type='number' id='session-weight' class='form-control' min='0' step='0.5'>
-                            <button type='button' id='session-weight-plus' class='btn btn-sm'>+</button>
+            <!-- Main Content -->
+            <main class='workout-main'>
+                <div class='content-grid'>
+                    <!-- Left Column: Log Set Form -->
+                    <div class='form-column'>
+                        <div class='form-card'>
+                            <div class='card-header'>
+                                <h2 class='card-title'>Log New Set</h2>
+                                <p class='card-subtitle'>Add your latest set to track progress</p>
+                            </div>
+                            
+                            <div id='set-logging-section' style='display: none;'>
+                                <form id='session-log-set-form' class='modern-form'>
+                                    <div class='form-row'>
+                                        <div class='form-group'>
+                                            <label for='session-weight' class='form-label'>
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M6 3h12l4 6-10 13L2 9z"/>
+                                                </svg>
+                                                Weight (lbs)
+                                            </label>
+                                            <div class='input-group'>
+                                                <button type='button' class='input-btn minus' id='session-weight-minus' aria-label='Decrease weight'>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M5 12h14"/>
+                                                    </svg>
+                                                </button>
+                                                <input type='number' id='session-weight' name='weight' step='0.1' required class='form-input'>
+                                                <button type='button' class='input-btn plus' id='session-weight-plus' aria-label='Increase weight'>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M12 5v14M5 12h14"/>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class='form-group'>
+                                            <label for='session-reps' class='form-label'>
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                                                </svg>
+                                                Reps
+                                            </label>
+                                            <div class='input-group'>
+                                                <button type='button' class='input-btn minus' id='session-reps-minus' aria-label='Decrease reps'>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M5 12h14"/>
+                                                    </svg>
+                                                </button>
+                                                <input type='number' id='session-reps' name='reps' required class='form-input'>
+                                                <button type='button' class='input-btn plus' id='session-reps-plus' aria-label='Increase reps'>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M12 5v14M5 12h14"/>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Total Weight Display for Barbell Exercises -->
+                                    <div id='session-total-weight-display' class='form-group' style='display: none;'>
+                                        <label class='form-label'>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                            </svg>
+                                            Total Weight (including barbell)
+                                        </label>
+                                        <div class='total-weight-value' id='session-total-weight-value' style="
+                                            background: #f8f9fa;
+                                            padding: 12px 16px;
+                                            border-radius: 8px;
+                                            font-size: 18px;
+                                            font-weight: bold;
+                                            color: #007bff;
+                                            text-align: center;
+                                            border: 2px solid #e9ecef;
+                                        ">
+                                            <span id='session-user-weight'>0</span> + <span id='session-barbell-weight'>45</span> = <span id='session-total-weight'>45</span> lbs
+                                        </div>
+                                    </div>
+                                    
+                                    <button type='button' id='log-set-btn' class='submit-btn'>
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M12 5v14M5 12h14"/>
+                                        </svg>
+                                        Add Set
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class='form-group'>
-                        <label for='session-reps'>Reps</label>
-                        <div class='input-group'>
-                            <button type='button' id='session-reps-minus' class='btn btn-sm'>-</button>
-                            <input type='number' id='session-reps' class='form-control' min='1' max='100'>
-                            <button type='button' id='session-reps-plus' class='btn btn-sm'>+</button>
+
+                    <!-- Right Column: Sets -->
+                    <div class='stats-column'>
+                        <!-- Personal Record Summary -->
+                        <div class='pr-summary'>
+                            <span>🏆 Personal Record: <span id='pr-highest-weight'>-</span></span>
+                        </div>
+                        
+                        <!-- Rest Timer Section -->
+                        <div class='rest-timer-card'>
+                            <div class='card-header'>
+                                <h3 class='card-title'>
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    Rest Timer
+                                </h3>
+                                <div class='timer-status' id='session-timer-status'>Ready</div>
+                            </div>
+                            
+                            <div class='timer-display-container'>
+                                <div class='timer-display' id='session-rest-timer-display'>00:00</div>
+                                <div class='timer-progress'>
+                                    <div class='progress-bar'>
+                                        <div class='progress-fill' id='session-timer-progress-fill'></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Preset Rest Times -->
+                            <div class='preset-times'>
+                                <div class='preset-label'>Quick Start:</div>
+                                <div class='preset-buttons'>
+                                    <button class='preset-btn' data-time='60'>1 min</button>
+                                    <button class='preset-btn' data-time='90'>1:30</button>
+                                    <button class='preset-btn' data-time='120'>2 min</button>
+                                    <button class='preset-btn' data-time='180'>3 min</button>
+                                    <button class='preset-btn' data-time='300'>5 min</button>
+                                </div>
+                            </div>
+                            
+                            <div class='timer-controls'>
+                                <button id='session-start-timer' class='timer-btn start'>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polygon points="5,3 19,12 5,21"/>
+                                    </svg>
+                                    Start
+                                </button>
+                                <button id='session-pause-timer' class='timer-btn pause' disabled>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="6" y="4" width="4" height="16"/>
+                                        <rect x="14" y="4" width="4" height="16"/>
+                                    </svg>
+                                    Pause
+                                </button>
+                                <button id='session-reset-timer' class='timer-btn reset'>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="1,4 1,10 7,10"/>
+                                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                                    </svg>
+                                    Reset
+                                </button>
+                            </div>
+                            
+                            <!-- Custom Time Input -->
+                            <div class='custom-time-section'>
+                                <div class='custom-time-input'>
+                                    <input type='number' id='session-custom-minutes' placeholder='0' min='0' max='59'>
+                                    <span class='time-separator'>:</span>
+                                    <input type='number' id='session-custom-seconds' placeholder='00' min='0' max='59'>
+                                    <button id='session-set-custom-time' class='set-time-btn'>Set</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Today's Sets Card -->
+                        <div class='sets-card'>
+                            <div class='card-header'>
+                                <h3 class='card-title'>
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M9 12l2 2 4-4M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"/>
+                                    </svg>
+                                    Today's Sets
+                                </h3>
+                                <span class='sets-count' id='session-sets-count'>0 sets</span>
+                            </div>
+                            <div class='sets-table-container'>
+                                <div class='table-container'>
+                                    <table id='session-sets-table' class='modern-table'>
+                                        <thead>
+                                            <tr>
+                                                <th>Set</th>
+                                                <th>Weight</th>
+                                                <th>Total Weight</th>
+                                                <th>Reps</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id='session-sets-tbody'></tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    
-                    <button id='log-set-btn' class='btn btn-primary'>Log Set</button>
                 </div>
-                
-                <div id='session-sets-table'>
-                    <table class='table'>
-                        <thead>
-                            <tr>
-                                <th>Set</th>
-                                <th>Weight</th>
-                                <th>Reps</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id='session-sets-tbody'></tbody>
-                    </table>
-                </div>
-            </div>
+            </main>
             
+            <!-- Session Actions -->
             <div class='session-actions'>
                 <button id='complete-workout-btn' class='btn btn-success' style='display: none;'>
                     Complete Workout
@@ -814,6 +986,9 @@ function renderSessionUI(session) {
     if (session.exercises.length > 0) {
         loadCurrentExercise();
     }
+    
+    // Load personal records for the current exercise
+    loadPersonalRecords();
 }
 
 function setupSessionEventListeners() {
@@ -843,10 +1018,10 @@ function setupSessionEventListeners() {
     
     // Plus/minus buttons
     weightMinus.addEventListener('click', () => {
-        weightInput.value = Math.max(0, parseInt(weightInput.value || 0) - 5);
+        weightInput.value = Math.max(0, parseFloat(weightInput.value || 0) - 5);
     });
     weightPlus.addEventListener('click', () => {
-        weightInput.value = parseInt(weightInput.value || 0) + 5;
+        weightInput.value = parseFloat(weightInput.value || 0) + 5;
     });
     repsMinus.addEventListener('click', () => {
         repsInput.value = Math.max(1, parseInt(repsInput.value || 0) - 1);
@@ -867,6 +1042,13 @@ function setupSessionEventListeners() {
             window.location.href = '/';
         }
     });
+    
+    // Barbell logic and total weight calculation
+    weightInput.addEventListener('input', updateSessionTotalWeight);
+    repsInput.addEventListener('input', updateSessionTotalWeight);
+    
+    // Rest timer functionality
+    setupSessionRestTimer();
 }
 
 async function loadCurrentExercise() {
@@ -921,15 +1103,28 @@ async function loadCurrentExercise() {
         progressText.textContent = `Exercise ${currentExerciseIndex + 1} of ${currentSession.exercises.length}`;
     }
     
-    // Load sets for this exercise
+    // Load personal records for the new exercise
+    loadPersonalRecords();
+    
+    // Load exercise sets
     await loadExerciseSets();
+    
+    // Load default values from last workout
+    await loadSessionDefaults();
 }
 
 async function loadExerciseSets() {
     try {
-        const resp = await fetch(`/fitness/api/exercise_sets?exercise_id=${currentExercise.id}&session_id=${SESSION_ID}`);
+        console.log('Loading exercise sets for:', {
+            exercise_id: currentExercise.exercise_id,
+            session_id: SESSION_ID,
+            exercise_name: currentExercise.exercise_name
+        });
+        
+        const resp = await fetch(`/fitness/api/exercise_sets?exercise_id=${currentExercise.exercise_id}&session_id=${SESSION_ID}&exercise_name=${encodeURIComponent(currentExercise.exercise_name)}`);
         if (!resp.ok) throw new Error('Failed to load sets');
         exerciseSets = await resp.json();
+        console.log('Loaded exercise sets:', exerciseSets);
         renderExerciseSets();
     } catch (err) {
         console.error('Error loading exercise sets:', err);
@@ -940,6 +1135,7 @@ async function loadExerciseSets() {
 
 function renderExerciseSets() {
     const tbody = document.getElementById('session-sets-tbody');
+    const setsCount = document.getElementById('session-sets-count');
     if (!tbody) return;
     
     tbody.innerHTML = '';
@@ -949,6 +1145,7 @@ function renderExerciseSets() {
         row.innerHTML = `
             <td>${index + 1}</td>
             <td>${set.weight} lbs</td>
+            <td>${set.total_weight} lbs</td>
             <td>${set.reps}</td>
             <td>
                 <button class='btn btn-sm btn-danger' onclick='deleteSessionSet(${set.id})'>Delete</button>
@@ -956,6 +1153,11 @@ function renderExerciseSets() {
         `;
         tbody.appendChild(row);
     });
+    
+    // Update sets count
+    if (setsCount) {
+        setsCount.textContent = `${exerciseSets.length} set${exerciseSets.length !== 1 ? 's' : ''}`;
+    }
 }
 
 async function logSetForSession() {
@@ -980,7 +1182,7 @@ async function logSetForSession() {
     const payload = {
         session_id: SESSION_ID,
         exercise_id: currentExercise.id,
-        category_id: currentExercise.category_id || '',
+        category_id: currentExercise.category_id || null,
         exercise: currentExercise.exercise_name,
         weight: weight,
         reps: reps
@@ -1001,6 +1203,8 @@ async function logSetForSession() {
             throw new Error(error.error || 'Failed to log set');
         }
         
+        const result = await resp.json();
+        
         // Clear form
         weightInput.value = '';
         repsInput.value = '';
@@ -1008,7 +1212,16 @@ async function logSetForSession() {
         // Reload sets
         await loadExerciseSets();
         
-        showSnack('Set logged successfully!', 'success');
+        // Show PR achievements if present in backend response
+        let message = 'Set logged successfully!';
+        if (result.prs_achieved && result.prs_achieved.length > 0) {
+            message += '\n🎉 NEW PERSONAL RECORDS:\n' + result.prs_achieved.join('\n');
+            handlePRAchievement(result.prs_achieved, currentExercise.exercise_name);
+        }
+        showSnack(message, 'success');
+        
+        // Optionally, still check for PRs in frontend for extra safety (can be removed if not needed)
+        // await checkPRAchievements(weight, reps);
         
     } catch (err) {
         console.error('Error logging set:', err);
@@ -1064,3 +1277,267 @@ async function completeWorkout() {
 
 // Make deleteSessionSet available globally
 window.deleteSessionSet = deleteSessionSet;
+
+// Personal Records functionality for session mode
+async function loadPersonalRecords() {
+    // Only load PRs if we're in session mode and currentExercise is available
+    if (!currentExercise || !SESSION_MODE) return;
+    
+    try {
+        const resp = await fetch(`/fitness/api/personal_records/${currentExercise.exercise_name}`);
+        const prElement = document.getElementById('pr-highest-weight');
+        if (resp.status === 404) {
+            if (prElement) {
+                prElement.textContent = 'No PR yet';
+                prElement.style.color = '#6c757d';
+                prElement.style.fontWeight = 'normal';
+            }
+            console.warn('No personal records found for this exercise.');
+            return;
+        }
+        if (!resp.ok) throw new Error('Failed to load PRs');
+        const prs = await resp.json();
+        // prs is an array of PR objects
+        let weightPR = prs.find(pr => pr.pr_type === 'weight');
+        let repsPR = prs.find(pr => pr.pr_type === 'reps');
+        if (prElement && weightPR) {
+            prElement.textContent = `${weightPR.value} lbs`;
+            prElement.style.color = '#007bff';
+            prElement.style.fontWeight = 'bold';
+        } else if (prElement) {
+            prElement.textContent = 'No PR yet';
+            prElement.style.color = '#6c757d';
+            prElement.style.fontWeight = 'normal';
+        }
+        // Optionally, you could display reps PR elsewhere if desired
+    } catch (err) {
+        console.error('Error loading personal records:', err);
+    }
+}
+
+// Barbell logic for session mode
+function updateSessionTotalWeight() {
+    const weightInput = document.getElementById('session-weight');
+    const totalWeightDisplay = document.getElementById('session-total-weight-display');
+    const userWeightSpan = document.getElementById('session-user-weight');
+    const barbellWeightSpan = document.getElementById('session-barbell-weight');
+    const totalWeightSpan = document.getElementById('session-total-weight');
+    
+    if (!weightInput || !totalWeightDisplay) return;
+    
+    const userWeight = parseFloat(weightInput.value) || 0;
+    const barbellWeight = 45; // Standard barbell weight
+    
+    // Check if this is a barbell exercise
+    const isBarbell = checkIfBarbellExercise(currentExercise?.exercise_name);
+    
+    if (isBarbell && userWeight > 0) {
+        totalWeightDisplay.style.display = 'block';
+        const totalWeight = userWeight + barbellWeight;
+        
+        if (userWeightSpan) userWeightSpan.textContent = userWeight;
+        if (barbellWeightSpan) barbellWeightSpan.textContent = barbellWeight;
+        if (totalWeightSpan) totalWeightSpan.textContent = totalWeight;
+    } else {
+        totalWeightDisplay.style.display = 'none';
+    }
+}
+
+function checkIfBarbellExercise(exerciseName) {
+    if (!exerciseName) return false;
+    
+    const barbellExercises = [
+        'bench press', 'squat', 'deadlift', 'overhead press', 'barbell row',
+        'barbell curl', 'barbell tricep extension', 'barbell shoulder press',
+        'barbell bench press', 'barbell squat', 'barbell deadlift'
+    ];
+    
+    return barbellExercises.some(exercise => 
+        exerciseName.toLowerCase().includes(exercise.toLowerCase())
+    );
+}
+
+// Load default values from last workout for session mode
+async function loadSessionDefaults() {
+    if (!currentExercise || !SESSION_MODE) return;
+    
+    try {
+        const resp = await fetch(`/fitness/api/last_workout/${currentExercise.exercise_name}`);
+        
+        if (resp.status === 404) {
+            // No previous workout found - this is normal for new exercises
+            console.log(`No previous workout found for ${currentExercise.exercise_name}`);
+            return;
+        }
+        
+        if (!resp.ok) {
+            console.error('Failed to load defaults:', resp.status, resp.statusText);
+            return;
+        }
+        
+        const lastWorkout = await resp.json();
+        console.log('Setting defaults from last workout:', lastWorkout);
+        
+        if (lastWorkout.weight && lastWorkout.reps) {
+            const weightInput = document.getElementById('session-weight');
+            const repsInput = document.getElementById('session-reps');
+            
+            if (weightInput) weightInput.value = lastWorkout.weight;
+            if (repsInput) repsInput.value = lastWorkout.reps;
+            
+            console.log(`Default values set: ${lastWorkout.weight} lbs, ${lastWorkout.reps} reps`);
+            
+            // Update total weight display if it's a barbell exercise
+            updateSessionTotalWeight();
+        }
+    } catch (err) {
+        console.error('Error loading session defaults:', err);
+    }
+}
+
+// Check for PR achievements in session mode
+async function checkPRAchievements(weight, reps) {
+    if (!currentExercise || !SESSION_MODE) return;
+    
+    try {
+        const resp = await fetch(`/fitness/api/personal_records/${currentExercise.exercise_name}`);
+        if (!resp.ok) throw new Error('Failed to load PRs');
+        
+        const prs = await resp.json();
+        const prsAchieved = [];
+        
+        // Check for weight PR
+        if (prs.highest_weight && weight > prs.highest_weight) {
+            prsAchieved.push('weight');
+        }
+        
+        // Check for reps PR
+        if (prs.highest_reps && reps > prs.highest_reps) {
+            prsAchieved.push('reps');
+        }
+        
+        // Check for total weight PR (for barbell exercises)
+        if (checkIfBarbellExercise(currentExercise.exercise_name)) {
+            const totalWeight = weight + 45; // Include barbell weight
+            if (prs.highest_total_weight && totalWeight > prs.highest_total_weight) {
+                prsAchieved.push('total_weight');
+            }
+        }
+        
+        if (prsAchieved.length > 0) {
+            handlePRAchievement(prsAchieved, currentExercise.exercise_name);
+        }
+        
+    } catch (err) {
+        console.error('Error checking PR achievements:', err);
+    }
+}
+
+// Rest timer functionality for session mode
+let sessionTimerInterval;
+let sessionTimerTime = 0;
+let sessionTimerRunning = false;
+
+function setupSessionRestTimer() {
+    const startBtn = document.getElementById('session-start-timer');
+    const pauseBtn = document.getElementById('session-pause-timer');
+    const resetBtn = document.getElementById('session-reset-timer');
+    const setCustomBtn = document.getElementById('session-set-custom-time');
+    const presetBtns = document.querySelectorAll('.preset-btn');
+    
+    if (startBtn) startBtn.addEventListener('click', startSessionTimer);
+    if (pauseBtn) pauseBtn.addEventListener('click', pauseSessionTimer);
+    if (resetBtn) resetBtn.addEventListener('click', resetSessionTimer);
+    if (setCustomBtn) setCustomBtn.addEventListener('click', setSessionCustomTime);
+    
+    presetBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const time = parseInt(btn.dataset.time);
+            setSessionTimerTime(time);
+        });
+    });
+}
+
+function startSessionTimer() {
+    if (sessionTimerTime <= 0) return;
+    
+    sessionTimerRunning = true;
+    document.getElementById('session-start-timer').disabled = true;
+    document.getElementById('session-pause-timer').disabled = false;
+    document.getElementById('session-timer-status').textContent = 'Running';
+    
+    sessionTimerInterval = setInterval(() => {
+        sessionTimerTime--;
+        updateSessionTimerDisplay();
+        
+        if (sessionTimerTime <= 0) {
+            clearInterval(sessionTimerInterval);
+            sessionTimerRunning = false;
+            document.getElementById('session-start-timer').disabled = false;
+            document.getElementById('session-pause-timer').disabled = true;
+            document.getElementById('session-timer-status').textContent = 'Complete';
+            
+            // Play notification sound
+            playTimerCompleteSound();
+        }
+    }, 1000);
+}
+
+function pauseSessionTimer() {
+    if (!sessionTimerRunning) return;
+    
+    clearInterval(sessionTimerInterval);
+    sessionTimerRunning = false;
+    document.getElementById('session-start-timer').disabled = false;
+    document.getElementById('session-pause-timer').disabled = true;
+    document.getElementById('session-timer-status').textContent = 'Paused';
+}
+
+function resetSessionTimer() {
+    clearInterval(sessionTimerInterval);
+    sessionTimerRunning = false;
+    sessionTimerTime = 0;
+    document.getElementById('session-start-timer').disabled = true;
+    document.getElementById('session-pause-timer').disabled = true;
+    document.getElementById('session-timer-status').textContent = 'Ready';
+    updateSessionTimerDisplay();
+}
+
+function setSessionCustomTime() {
+    const minutes = parseInt(document.getElementById('session-custom-minutes').value) || 0;
+    const seconds = parseInt(document.getElementById('session-custom-seconds').value) || 0;
+    const totalSeconds = minutes * 60 + seconds;
+    
+    if (totalSeconds > 0) {
+        setSessionTimerTime(totalSeconds);
+    }
+}
+
+function setSessionTimerTime(seconds) {
+    sessionTimerTime = seconds;
+    updateSessionTimerDisplay();
+    document.getElementById('session-start-timer').disabled = false;
+    document.getElementById('session-timer-status').textContent = 'Ready';
+}
+
+function updateSessionTimerDisplay() {
+    const minutes = Math.floor(sessionTimerTime / 60);
+    const seconds = sessionTimerTime % 60;
+    const display = document.getElementById('session-rest-timer-display');
+    const progressFill = document.getElementById('session-timer-progress-fill');
+    
+    if (display) {
+        display.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    
+    if (progressFill) {
+        const progress = sessionTimerTime > 0 ? (sessionTimerTime / (sessionTimerTime + 1)) * 100 : 0;
+        progressFill.style.width = `${progress}%`;
+    }
+}
+
+function playTimerCompleteSound() {
+    // Play a notification sound when timer completes
+    const audio = new Audio('/static/sounds/timer-complete.mp3');
+    audio.play().catch(err => console.log('Could not play timer sound:', err));
+}

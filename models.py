@@ -220,6 +220,7 @@ class Workout(db.Model):
     weight = db.Column(db.Float, nullable=False)
     reps = db.Column(db.Integer, nullable=False)
     sets = db.Column(db.Integer, nullable=False)
+    total_weight = db.Column(db.Float, nullable=True)  # New: total weight (plates + barbell)
     
     # Removed session_exercise_id foreign key to fix circular reference
 

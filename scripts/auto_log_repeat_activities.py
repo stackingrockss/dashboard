@@ -1,5 +1,6 @@
 from datetime import date, datetime
-from app import create_app, db
+# OLD: from app import create_app, db
+from app import app, db
 from models import RepeatActivity, Activity
 
 def is_due_today(repeat, today):
@@ -38,6 +39,5 @@ def auto_log_for_all_users():
     db.session.commit()
 
 if __name__ == '__main__':
-    app = create_app()
     with app.app_context():
         auto_log_for_all_users() 

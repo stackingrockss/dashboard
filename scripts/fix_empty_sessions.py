@@ -41,6 +41,7 @@ def fix_empty_sessions():
                     session_id=session.id,
                     exercise_name=template_exercise.exercise_name,
                     exercise_id=template_exercise.exercise_id,
+                    category_id=template_exercise.category_id,
                     order=template_exercise.order,
                     notes=template_exercise.notes,
                     target_sets=template_exercise.target_sets,
